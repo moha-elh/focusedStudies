@@ -1,42 +1,53 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-bricolage);
+  --font-sans: var(--font-instrument);
 }
 
 @theme {
-  /* Warm deep grays + off-white; no pure black/white. */
-  --color-canvas: #141311;
-  --color-surface: #1c1a17;
-  --color-line: #2e2b26;
-  --color-muted: #9a9286;
-  --color-ink: #ebe5da;
-  --color-accent: #e9a94b;
-  --color-good: #8fbf8a;
-  --color-bad: #e07a6a;
+  /* Light editorial palette: warm off-white, ink, one dark "night" surface. */
+  --color-canvas: #efeeeb;
+  --color-panel: #e3e2de;
+  --color-paper: #f7f6f3;
+  --color-line: #d3d1cb;
+  --color-muted: #85837e;
+  --color-ink: #161616;
+  --color-night: #171716;
+  --color-night-ink: #ecebe7;
+  --color-good: #3e7b4f;
+  --color-mid: #a87a22;
+  --color-bad: #b9533f;
 
-  /* Strict type scale: 12 / 14 / 16 / 20 / 24 / 32. text-lg, 3xl+ are disabled. */
+  /* Strict type scale: 12 / 14 / 16 / 20 / 24 / 32 / 48 / 64 / 128. Off-scale sizes are disabled. */
   --text-lg: initial;
   --text-3xl: initial;
   --text-4xl: initial;
   --text-5xl: initial;
   --text-6xl: initial;
   --text-7xl: initial;
+  --text-8xl: initial;
+  --text-9xl: initial;
   --text-display: 2rem;
   --text-display--line-height: 1.15;
+  --text-h1: 3rem;
+  --text-h1--line-height: 1.05;
+  --text-hero: 4rem;
+  --text-hero--line-height: 1;
+  --text-mark: 8rem;
+  --text-mark--line-height: 0.9;
 
-  /* Radii by role, not one radius everywhere. */
-  --radius-control: 6px;
-  --radius-media: 3px;
-  --radius-frame: 10px;
+  /* Radii by role. */
+  --radius-hero: 28px;
+  --radius-panel: 20px;
+  --radius-media: 12px;
 }
 
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
-  color-scheme: dark;
 }
 
 ::selection {
-  background: rgb(233 169 75 / 0.35);
+  background: var(--color-ink);
+  color: var(--color-paper);
 }

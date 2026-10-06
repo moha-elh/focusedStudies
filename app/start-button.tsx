@@ -8,10 +8,10 @@ export default function StartButton() {
   return (
     <button
       disabled={pending}
-      className="flex items-center justify-center gap-2 rounded-control bg-accent px-5 py-3 font-semibold text-canvas transition hover:brightness-110 disabled:opacity-60"
+      className="flex shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-paper transition-opacity hover:opacity-85 disabled:opacity-60"
     >
       {pending && <Spinner />}
-      {pending ? "Opening…" : "Start watching"}
+      {pending ? "Opening…" : "Start watching ↗"}
     </button>
   );
 }

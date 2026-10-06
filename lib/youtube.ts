@@ -16,6 +16,29 @@ export function parseVideoId(input: string): string | null {
   }
 }
 
+// 222 -> "3:42", 3725 -> "1:02:05"
+export function fmtTime(seconds: number) {
+  const s = Math.max(0, Math.floor(seconds));
+  const [h, m, sec] = [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60];
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
+}
+
+// Groups caption parts into ~30s blocks prefixed with [m:ss], so the grader can cite moments.
+// youtube-transcript returns ms for srv3 captions and seconds for the classic format;
+// ponytail: integer offsets => ms heuristic, misreads a classic track whose starts are all whole seconds.
+export function timestampedTranscript(parts: { text: string; offset: number }[], blockSeconds = 30) {
+  const toSec = parts.every((p) => Number.isInteger(p.offset)) ? 1000 : 1;
+  const blocks: { start: number; text: string[] }[] = [];
+  for (const p of parts) {
+    const t = p.offset / toSec;
+    const last = blocks.at(-1);
+    if (!last || t - last.start >= blockSeconds) blocks.push({ start: t, text: [p.text] });
+    else last.text.push(p.text);
+  }
+  return blocks.map((b) => `[${fmtTime(b.start)}] ${b.text.join(" ").replace(/\s+/g, " ")}`).join("\n");
+}
+
 export async function fetchTitle(videoId: string): Promise<string | null> {
   const res = await fetch(`https://www.youtube.com/oembed?format=json&url=https://www.youtube.com/watch?v=${videoId}`);
   return res.ok ? ((await res.json()) as { title: string }).title : null;

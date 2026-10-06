@@ -4,12 +4,15 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 // ponytail: single JSON file, no users. Swap for Supabase when accounts are added.
 const FILE = "data/sessions.json";
 
+export type Note = { t: number; text: string };
+
 export type Session = {
   id: string;
   video_id: string;
   title: string | null;
   recap: string;
   feedback: unknown;
+  notes?: Note[]; // taken while watching, t = seconds into the video
   created_at: string;
   updated_at?: string;
 };
@@ -31,7 +34,7 @@ export async function getSessionByVideo(videoId: string) {
 }
 
 // One entry per video: re-submitting a video updates its notes and moves it to the top.
-export async function saveSession(s: Pick<Session, "video_id" | "title" | "recap" | "feedback">) {
+export async function saveSession(s: Pick<Session, "video_id" | "title" | "recap" | "feedback" | "notes">) {
   const all = await listSessions();
   const prev = all.find((x) => x.video_id === s.video_id);
   const now = new Date().toISOString();
