@@ -136,7 +136,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
             </Link>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-[1fr_2fr]">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_2fr]">
             <div className="flex flex-col justify-between gap-10 rounded-panel bg-night p-6 text-night-ink">
               <span className="text-sm text-night-ink/60">Average score</span>
               <div>
@@ -150,7 +150,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
               </Link>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {sessions.slice(0, 4).map((s) => {
                 const score = scoreOf(s.feedback);
                 return (
