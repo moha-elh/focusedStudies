@@ -24,8 +24,10 @@ const LINKS = [
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${instrument.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans text-base">
+    // Browser extensions (Grammarly and others) add attributes to <html> and <body> before React loads;
+    // ignore those. This only covers these two tags, so real mismatches inside the app are still reported.
+    <html lang="en" className={`${instrument.variable} h-full antialiased`} suppressHydrationWarning>
+      <body className="flex min-h-full flex-col font-sans text-base" suppressHydrationWarning>
         <div className="mx-auto flex w-full max-w-[1320px] flex-1 flex-col px-3 sm:px-5">
           <nav className="flex items-center gap-6 py-5 text-sm">
             <Link href="/" className="mr-auto text-xl font-medium">
