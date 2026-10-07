@@ -1,18 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { Feedback, FeedbackPoint } from "@/app/api/review/route";
+import type { Feedback } from "@/app/api/review/route";
 import { getSession } from "@/lib/db";
+import { toMarkdown, toPoint } from "@/lib/export";
 import { fmtTime } from "@/lib/youtube";
 import { Label, ScoreRing, scoreColor, Thumb } from "../../ui";
+import CopyButton from "./copy-button";
 
 const SECTIONS = [
   { key: "covered", title: "You got right", dot: "bg-good", empty: "Nothing matched yet." },
   { key: "missed", title: "You missed", dot: "bg-mid", empty: "You covered everything important." },
   { key: "incorrect", title: "Not quite right", dot: "bg-bad", empty: "No mistakes. Nice." },
 ] as const;
-
-// Feedback saved before timestamps existed is a plain string.
-const toPoint = (p: FeedbackPoint | string): FeedbackPoint => (typeof p === "string" ? { text: p, t: null } : p);
 
 function JumpLink({ videoId, t }: { videoId: string; t: number }) {
   return (
@@ -43,9 +42,15 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
               {s.updated_at ? "Updated " : ""}
               {new Date(s.updated_at ?? s.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
             </p>
-            <Link href={`/watch/${s.video_id}`} className="w-fit rounded-full bg-ink px-5 py-3 text-sm font-medium text-paper transition-opacity hover:opacity-85">
-              Rewatch and add notes ↗
-            </Link>
+            <div className="flex flex-wrap items-center gap-1">
+              <Link href={`/watch/${s.video_id}`} className="mr-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-paper transition-opacity hover:opacity-85">
+                Rewatch and add notes ↗
+              </Link>
+              <a href={`/library/${s.id}/markdown`} download className="rounded-full px-4 py-3 text-sm transition-colors hover:bg-panel">
+                Download .md
+              </a>
+              <CopyButton text={toMarkdown(s)} />
+            </div>
           </div>
         </div>
       </header>
