@@ -11,6 +11,7 @@ Paste a YouTube link, watch it with no distractions, then explain what you learn
 - **Library:** every video you've watched, with your notes, score and date.
 - **Notes while watching:** each note is stamped with the video time; click a time to jump back. Unsent notes and recap survive a refresh.
 - **Jump to the moment:** every point in the feedback links to where the video covers it.
+- **Sponsor skipping:** sponsor, self-promo and "like and subscribe" segments are skipped automatically, using SponsorBlock's community data.
 - **One entry per video:** re-watching a video pre-fills your earlier recap and notes; submitting updates the same entry and re-grades it.
 
 ## Run
@@ -33,6 +34,7 @@ Done
 - [x] Timestamped notes while watching
 - [x] "Jump to" timestamps on feedback points
 - [x] Clear demo-mode notice when no API key is set
+- [x] Sponsor-segment skipping (SponsorBlock)
 
 **P0: left for last (blocks local testing)**
 - [ ] Accounts + cloud database (Supabase)
@@ -40,7 +42,6 @@ Done
 
 **P1**
 - [ ] Score history per video (show improvement across revisits)
-- [ ] Sponsor-segment skipping (SponsorBlock)
 - [ ] Export notes (Markdown, Notion)
 - [ ] Browser extension: "Open in FocusLearn" button on YouTube
 

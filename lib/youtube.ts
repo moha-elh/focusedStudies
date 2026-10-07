@@ -43,3 +43,18 @@ export async function fetchTitle(videoId: string): Promise<string | null> {
   const res = await fetch(`https://www.youtube.com/oembed?format=json&url=https://www.youtube.com/watch?v=${videoId}`);
   return res.ok ? ((await res.json()) as { title: string }).title : null;
 }
+
+// Community-marked sponsor, self-promo and "like and subscribe" segments from SponsorBlock, as [start, end] seconds.
+// Called from the browser so a slow API never holds up the page. It fails soft: no segments (404)
+// or an outage just mean nothing gets skipped. The API is flaky, so a failed request is retried once.
+export async function fetchSkipSegments(videoId: string): Promise<[number, number][]> {
+  const categories = encodeURIComponent(JSON.stringify(["sponsor", "selfpromo", "interaction"]));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(`https://sponsor.ajay.app/api/skipSegments?videoID=${videoId}&categories=${categories}`);
+      if (res.status === 404) return [];
+      if (res.ok) return ((await res.json()) as { segment: [number, number] }[]).map((s) => s.segment);
+    } catch {}
+  }
+  return [];
+}

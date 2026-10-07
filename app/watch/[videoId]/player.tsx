@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Note } from "@/lib/db";
-import { fmtTime } from "@/lib/youtube";
+import { fetchSkipSegments, fmtTime } from "@/lib/youtube";
 import { Label, Spinner, Thumb } from "../../ui";
 
 type YTPlayer = {
@@ -47,6 +47,8 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const [notes, setNotes] = useState<Note[]>(previousNotes);
   const [noteText, setNoteText] = useState("");
   const [now, setNow] = useState(start);
+  const [skips, setSkips] = useState<[number, number][]>([]);
+  const [skipped, setSkipped] = useState(0);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -69,13 +71,31 @@ export default function Player({ videoId, title, start, previousRecap, previousN
       s.src = "https://www.youtube.com/iframe_api";
       document.body.appendChild(s);
     }
-    // A ticking clock so the note box shows the time a new note will be stamped with.
+  }, [videoId, start]);
+
+  useEffect(() => {
+    let live = true;
+    fetchSkipSegments(videoId).then((s) => live && setSkips(s));
+    return () => {
+      live = false;
+    };
+  }, [videoId]);
+
+  // A ticking clock so the note box shows the time a new note will be stamped with,
+  // and so playback can jump past sponsor segments as soon as it enters one.
+  useEffect(() => {
     const tick = setInterval(() => {
       const t = player.current?.getCurrentTime?.();
-      if (typeof t === "number") setNow(t);
+      if (typeof t !== "number") return;
+      const seg = skips.find(([a, b]) => t >= a && t < b - 0.5);
+      if (seg) {
+        player.current?.seekTo?.(seg[1], true);
+        setSkipped((n) => n + 1);
+      }
+      setNow(seg ? seg[1] : t);
     }, 500);
     return () => clearInterval(tick);
-  }, [videoId, start]);
+  }, [skips]);
 
   // An unsent recap and notes survive a refresh. If browser storage is unavailable, we just skip the draft.
   // Read after mount (not in useState) so the server-rendered HTML matches the first client render.
@@ -142,7 +162,9 @@ export default function Player({ videoId, title, start, previousRecap, previousN
       <div className={done ? "hidden" : "flex flex-col gap-6"}>
         <div className="flex flex-col gap-3 px-2 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
           <h1 className="min-w-0 text-2xl font-medium line-clamp-2 sm:text-display">{title ?? "Focus session"}</h1>
-          <Label className="shrink-0">Focus mode</Label>
+          <Label className="shrink-0">
+            {skipped ? `Skipped ${skipped} sponsor ${skipped === 1 ? "segment" : "segments"}` : skips.length ? "Focus mode, sponsors skipped" : "Focus mode"}
+          </Label>
         </div>
 
         <div className="grid gap-3 lg:grid-cols-[1fr_340px]">
