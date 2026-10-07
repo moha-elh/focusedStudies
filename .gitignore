@@ -43,3 +43,7 @@ next-env.d.ts
 
 # local demo data
 /data
+
+# Created by "Pack extension" in the browser
+*.crx
+*.pem

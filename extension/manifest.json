@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Open in FocusLearn",
+  "version": "0.4.0",
+  "description": "Watch any YouTube video in FocusLearn, without the noise. Click the icon or the button on the video page.",
+  "icons": { "16": "icon16.png", "32": "icon32.png", "48": "icon48.png", "128": "icon128.png" },
+  "action": {
+    "default_title": "Open this video in FocusLearn",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icon16.png", "32": "icon32.png" }
+  },
+  "permissions": ["scripting"],
+  "host_permissions": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
+      "js": ["shared.js", "content.js"]
+    }
+  ]
+}
