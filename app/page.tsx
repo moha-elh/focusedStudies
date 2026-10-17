@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listSessions } from "@/lib/db";
 import { parseVideoId } from "@/lib/youtube";
-import StartButton from "./start-button";
-import { Label, Mark, scoreColor, scoreOf, Thumb } from "./ui";
+import HeroCta from "./hero-cta";
+import SplitText from "./SplitText";
+import { Label, scoreColor, scoreOf, Thumb } from "./ui";
 
 async function start(formData: FormData) {
   "use server";
@@ -11,114 +12,88 @@ async function start(formData: FormData) {
   redirect(id ? `/watch/${id}` : "/?invalid=1#start");
 }
 
-// Each bar sits a little lower than the last, like a production timeline.
+// Shared SplitText settings for the "Why FocusLearn" statement: words rise from behind a mask as it scrolls in.
+const STATEMENT = {
+  tag: "span", className: "!inline", splitType: "words", mask: true, delay: 40, duration: 1,
+  from: { opacity: 0, y: 40 }, to: { opacity: 1, y: 0 }, textAlign: "left", hoverEffect: "lift",
+};
+
+// Blocks step up like a rising sun: sky to full sun.
 const STEPS = [
-  { name: "Watch", offset: "", text: "Just the video. No sidebar, comments or autoplay pulling you somewhere else." },
-  { name: "Recall", offset: "lg:mt-12", text: "When it ends, write what you learned from memory, in your own words." },
-  { name: "Compare", offset: "lg:mt-24", text: "Your recap is checked against the transcript: what you nailed, missed or got wrong." },
-  { name: "Revisit", offset: "lg:mt-36", text: "Come back to the same video, add to your notes, and watch your score climb." },
+  { name: "Watch", block: "h-32 bg-sky", text: "Just the video. No sidebar, comments or autoplay pulling you somewhere else." },
+  { name: "Recall", block: "h-48 bg-sky-2", text: "When it ends, write what you learned from memory, in your own words." },
+  { name: "Compare", block: "h-64 bg-sun-soft", text: "Your recap is checked against the transcript: what you nailed, missed or got wrong." },
+  { name: "Revisit", block: "h-80 bg-sun", text: "Come back to the same video, add to your notes, and watch your score climb." },
 ];
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ invalid?: string }> }) {
-  const { invalid } = await searchParams;
+export default async function Home({ searchParams }: { searchParams: Promise<{ invalid?: string; paste?: string }> }) {
+  const { invalid, paste } = await searchParams;
+  const open = !!(invalid || paste);
   const sessions = await listSessions();
-  const latest = sessions[0];
-  const latestScore = latest ? scoreOf(latest.feedback) : null;
   const scores = sessions.map((s) => scoreOf(s.feedback)).filter((n) => n !== null);
   const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
 
   return (
-    <main className="flex flex-col gap-24">
-      {/* Hero */}
-      <section id="start" className="relative flex min-h-[680px] flex-col overflow-hidden rounded-hero bg-panel">
+    <main>
+      {/* Hero slides up under the layout header (h-21). */}
+      <section id="start" className="relative -mt-21 flex min-h-[680px] flex-col overflow-hidden bg-[#4d8fd9] pt-21 sm:min-h-[820px]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/hero.jpg"
-          alt="A calm lake between green hills"
-          className="absolute inset-x-0 bottom-0 h-[72%] w-full object-cover [mask-image:linear-gradient(to_bottom,transparent,black_35%)]"
+          src="/hero2.png"
+          alt=""
+          className="hero-img absolute inset-0 size-full object-cover object-[50%_60%]"
         />
+        <div aria-hidden className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-b from-canvas/0 to-canvas" />
 
-        <div className="relative flex flex-col justify-between gap-8 p-6 sm:p-10 lg:flex-row">
-          <h1 className="text-hero font-medium sm:text-mark">
-            <Mark />
-          </h1>
-          <div className="flex max-w-xs flex-col gap-3 lg:pt-4">
-            <Label>Built for deep learning</Label>
-            <p className="text-sm text-ink/80">
-              Watch one YouTube video without the noise. Then explain it in your own words and see what actually stuck.
-            </p>
+        <div className="wrap relative flex flex-1 flex-col items-center pt-12 text-center sm:pt-16">
+          <h1 className="rise mb-6 max-w-[920px] text-display sm:text-hero">Don&apos;t just finish the video. <span className="text-sun">Remember it.</span></h1>
+          <div className="rise w-full max-w-[600px] [--d:150ms]">
+            {/* Remount when the URL asks for the form, so "Paste a link" opens it from anywhere. */}
+            <HeroCta key={String(open)} action={start} defaultOpen={open} />
           </div>
         </div>
 
-        <div className="relative mt-auto flex flex-col gap-4 p-4 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
-          <form action={start} className="flex w-full max-w-xl flex-col gap-2 rounded-panel bg-paper/90 p-2 sm:flex-row">
-            <input
-              name="url"
-              required
-              aria-label="YouTube link"
-              placeholder="Paste a YouTube link…"
-              className="min-w-0 flex-1 rounded-full bg-transparent px-4 py-3 outline-none placeholder:text-muted"
-            />
-            <StartButton />
-          </form>
-
-          {latest && (
-            <Link href={`/library/${latest.id}`} className="group flex w-full max-w-72 flex-col gap-3 rounded-panel bg-paper/90 p-3">
-              <Thumb videoId={latest.video_id} className="w-full" />
-              <div className="flex items-start justify-between gap-3 px-1 pb-1">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{latest.title ?? latest.video_id}</p>
-                  <p className="text-xs text-muted">
-                    Last watched{latestScore !== null && <> · <span className={scoreColor(latestScore)}>{latestScore}/100</span></>}
-                  </p>
-                </div>
-                <span aria-hidden className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">↗</span>
-              </div>
-            </Link>
-          )}
-        </div>
       </section>
+
       {invalid && (
-        <p className="-mt-20 px-2 text-sm text-bad">That doesn&apos;t look like a YouTube video link. Try copying it again.</p>
+        <div className="wrap mt-4">
+          <p role="alert" className="flex items-center gap-3 rounded-full bg-bad-soft px-6 py-4 text-bad">
+            <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-full bg-bad text-sm font-semibold text-paper">!</span>
+            That doesn&apos;t look like a YouTube video link. Try copying it again.
+          </p>
+        </div>
       )}
 
       {/* Statement */}
-      <section className="grid gap-6 px-2 lg:grid-cols-[1fr_3fr]">
-        <Label>Why FocusLearn</Label>
-        <p className="max-w-4xl text-2xl font-medium sm:text-display">
-          We believe the best way to learn from a video isn&apos;t watching more, but{" "}
-          <span className="text-muted">
-            remembering more. Close the tab on distraction, say it back in your own words, and find out what you really
-            understood.
-          </span>
+      <section className="wrap py-32">
+        <Label className="reveal mb-8">Why FocusLearn</Label>
+        {/* Two SplitText runs keep the two-tone sentence; the muted half waits for the first to finish (14 words × 40ms). */}
+        <p className="max-w-[1120px] text-display sm:text-h1">
+          <SplitText {...STATEMENT} text={"We believe the best way to learn from a video isn’t watching more, but"} />{" "}
+          <SplitText {...STATEMENT} className="!inline text-muted" to={{ opacity: 1, y: 0, delay: 0.56 }} text="remembering more. Close the tab on distraction, say it back in your own words, and find out what you really understood." />
         </p>
       </section>
 
       {/* Process */}
-      <section id="process" className="flex scroll-mt-6 flex-col gap-10 px-2">
-        <div className="grid gap-6 lg:grid-cols-[1fr_2fr_1fr]">
-          <Label>Process</Label>
-          <h2 className="text-display font-medium">
-            From watching
-            <br />
-            to knowing.
-          </h2>
-          <p className="text-sm text-muted">
+      <section id="process" className="wrap scroll-mt-6">
+        <div className="reveal mb-12 flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <Label className="mb-4">Process</Label>
+            <h2 className="text-display font-semibold sm:text-h1">From watching to knowing.</h2>
+          </div>
+          <p className="max-w-[360px] leading-normal text-muted">
             Four steps that turn a passive video into something you can explain. Takes about as long as the video
             itself.
           </p>
         </div>
 
-        <ol className="grid grid-cols-2 gap-x-px gap-y-10 lg:grid-cols-4">
+        <ol className="grid grid-cols-2 items-end gap-x-2 gap-y-10 lg:grid-cols-4">
           {STEPS.map((s, i) => (
-            <li key={s.name} className="flex flex-col gap-4">
-              <div className="flex h-24 flex-col border-l lg:h-56 border-line">
-                <span className={`${s.offset} w-full bg-ink px-3 py-2 text-sm text-paper`}>{s.name}</span>
-                <span className="mt-auto pl-3 text-xs text-muted">0{i + 1}</span>
-              </div>
-              <div className="rounded-panel bg-paper p-5">
-                <p className="font-medium">{s.name}</p>
-                <p className="mt-1 text-sm text-muted">{s.text}</p>
+            <li key={s.name} className="flex flex-col">
+              <div className={`${s.block} grow-up rounded-t-panel p-5 text-xl font-semibold`}>0{i + 1}</div>
+              <div className="reveal min-h-36 border-t-2 border-ink pt-5">
+                <h3 className="mb-2 text-2xl font-semibold">{s.name}</h3>
+                <p className="max-w-[280px] leading-normal text-muted">{s.text}</p>
               </div>
             </li>
           ))}
@@ -127,44 +102,44 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
 
       {/* Recently learned */}
       {sessions.length > 0 && (
-        <section className="flex flex-col gap-10 px-2">
-          <div className="grid gap-6 lg:grid-cols-[1fr_2fr_1fr]">
-            <Label>Your notes</Label>
-            <h2 className="text-display font-medium">Notes between frames.</h2>
-            <Link href="/library" className="text-sm transition-colors hover:text-muted lg:justify-self-end">
-              Open library ↗
-            </Link>
+        <section className="wrap pt-32">
+          <div className="reveal mb-10 flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <Label className="mb-4">Your notes</Label>
+              <h2 className="text-display font-semibold sm:text-h1">Notes between frames.</h2>
+            </div>
+            <Link href="/library" className="py-3 font-semibold transition-colors hover:text-link">Open library ↗</Link>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_2fr]">
-            <div className="flex flex-col justify-between gap-10 rounded-panel bg-night p-6 text-night-ink">
-              <span className="text-sm text-night-ink/60">Average score</span>
+          <div className="flex flex-wrap items-stretch gap-6">
+            <div className="reveal flex min-h-[420px] min-w-0 flex-[1_1_320px] flex-col justify-between gap-10 rounded-hero bg-night p-8 text-night-ink">
+              <span className="text-night-muted">Average score</span>
               <div>
-                <p className="text-hero font-medium">{avg ?? "–"}</p>
-                <p className="text-sm text-night-ink/60">
+                <p className={`text-hero font-semibold sm:text-mark ${avg !== null ? scoreColor(avg, true) : ""}`}>{avg ?? "–"}</p>
+                <p className="mt-2 text-night-muted">
                   across {sessions.length} {sessions.length === 1 ? "video" : "videos"}
                 </p>
               </div>
-              <Link href="/library" className="w-fit rounded-full bg-night-ink px-4 py-2 text-sm text-night transition-opacity hover:opacity-85">
-                See everything ↗
-              </Link>
+              <Link href="/library" className="btn self-start bg-paper text-ink hover:bg-sky">See everything ↗</Link>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <ul className="grid min-w-0 flex-[2_1_600px] grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-x-8 gap-y-2">
               {sessions.slice(0, 4).map((s) => {
                 const score = scoreOf(s.feedback);
                 return (
-                  <Link key={s.id} href={`/library/${s.id}`} className="group flex flex-col gap-4 rounded-panel bg-paper p-5">
-                    <p className="line-clamp-3 text-xl font-medium break-words">“{s.recap}”</p>
-                    <div className="mt-auto flex items-center gap-3">
-                      <Thumb videoId={s.video_id} className="w-16" />
-                      <p className="min-w-0 flex-1 truncate text-sm text-muted group-hover:text-ink">{s.title ?? s.video_id}</p>
-                      {score !== null && <span className={`text-sm font-medium ${scoreColor(score)}`}>{score}</span>}
-                    </div>
-                  </Link>
+                  <li key={s.id} className="reveal border-t border-line pt-5 pb-4">
+                    <Link href={`/library/${s.id}`} className="group flex h-full flex-col justify-between gap-5 transition-transform duration-300 hover:-translate-y-1">
+                      <p className="line-clamp-3 text-xl leading-[1.4] break-words">“{s.recap}”</p>
+                      <span className="flex min-w-0 items-center gap-3">
+                        <Thumb videoId={s.video_id} className="w-16" />
+                        <span className="min-w-0 flex-1 truncate text-sm text-muted group-hover:text-ink">{s.title ?? s.video_id}</span>
+                        {score !== null && <span className={`text-sm font-semibold ${scoreColor(score)}`}>{score}</span>}
+                      </span>
+                    </Link>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </div>
         </section>
       )}

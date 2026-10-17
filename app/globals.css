@@ -1,22 +1,34 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-instrument);
+  --font-sans: var(--font-bricolage), system-ui, sans-serif;
 }
 
 @theme {
-  /* Light editorial palette: warm off-white, ink, one dark "night" surface. */
-  --color-canvas: #efeeeb;
-  --color-panel: #e3e2de;
-  --color-paper: #f7f6f3;
-  --color-line: #d3d1cb;
-  --color-muted: #85837e;
-  --color-ink: #161616;
-  --color-night: #171716;
-  --color-night-ink: #ecebe7;
-  --color-good: #3e7b4f;
-  --color-mid: #a87a22;
-  --color-bad: #b9533f;
+  /* Daylight palette from the meadow hero: warm canvas, navy ink, sky and sun accents, one night surface. */
+  --color-canvas: #f6f1e9;
+  --color-panel: #eae7df;
+  --color-paper: #fbfaf6;
+  --color-line: #d9d5cb;
+  --color-muted: #62645f;
+  --color-ink: #1a2130;
+  --color-link: #2f64a8;
+  --color-sky: #d8e5f8;
+  --color-sky-2: #b3ccf0;
+  --color-sun: #f4a340;
+  --color-sun-soft: #fadbb4;
+  --color-night: #142145;
+  --color-night-2: #22315c;
+  --color-night-ink: #e8ecf2;
+  --color-night-muted: #a7b2c4;
+  --color-good: #2e7646;
+  --color-mid: #8a5d0c;
+  --color-bad: #ae4136;
+  --color-bad-soft: #f6e1dc;
+  /* Score colors on night surfaces. */
+  --color-good-n: #8fd3a4;
+  --color-mid-n: #f7b866;
+  --color-bad-n: #f4a194;
 
   /* Strict type scale: 12 / 14 / 16 / 20 / 24 / 32 / 48 / 64 / 128. Off-scale sizes are disabled. */
   --text-lg: initial;
@@ -30,11 +42,14 @@
   --text-display: 2rem;
   --text-display--line-height: 1.15;
   --text-h1: 3rem;
-  --text-h1--line-height: 1.05;
+  --text-h1--line-height: 1.08;
+  --text-h1--letter-spacing: -0.02em;
   --text-hero: 4rem;
-  --text-hero--line-height: 1;
+  --text-hero--line-height: 1.06;
+  --text-hero--letter-spacing: -0.03em;
   --text-mark: 8rem;
-  --text-mark--line-height: 0.9;
+  --text-mark--line-height: 0.92;
+  --text-mark--letter-spacing: -0.045em;
 
   /* Radii by role. */
   --radius-hero: 28px;
@@ -42,12 +57,152 @@
   --radius-media: 12px;
 }
 
+@utility wrap {
+  width: 100%;
+  max-width: 1320px;
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+/* Primary pill button. */
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding-inline: 24px;
+  border-radius: 999px;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+  &:hover { background: #2b3650; }
+  &:disabled { opacity: 0.6; }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Secondary pill button: outlined, same height as .btn. */
+@utility btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding-inline: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--color-ink);
+  white-space: nowrap;
+  transition: background-color 0.15s;
+  &:hover { background: var(--color-paper); }
+  &:disabled { opacity: 0.5; }
+}
+
+/* Video timestamp chip, e.g. "▶ 1:35". */
+@utility pill-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding-inline: 10px;
+  border-radius: 999px;
+  background: var(--color-sky);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+  &:hover { background: var(--color-sky-2); }
+}
+
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
 }
 
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-link);
+    outline-offset: 3px;
+  }
+}
+
 ::selection {
   background: var(--color-ink);
   color: var(--color-paper);
+}
+
+/* Hero play CTA: white starburst, sun outline, soft shadow and glow. */
+.burst {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 8px 18px rgb(26 33 48 / 0.18)) drop-shadow(0 0 18px rgb(244 163 64 / 0.45));
+}
+.burst:hover { transform: scale(1.06); }
+.burst:active { transform: scale(0.95); }
+.burst:focus-visible { outline-offset: 6px; border-radius: 9999px; }
+.burst-shape { fill: #fff; stroke: var(--color-sun); stroke-width: 2; animation: burst-spin 60s linear infinite; }
+.burst-go { animation: burst-go 0.52s cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+@keyframes burst-spin { to { rotate: 360deg; } }
+@keyframes burst-go {
+  30% { transform: scale(0.9); }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+
+.ripple {
+  position: absolute; inset: 0; border-radius: 9999px; pointer-events: none;
+  border: 1.5px solid var(--color-sun);
+  animation: ripple 0.6s ease-out forwards;
+}
+@keyframes ripple {
+  from { transform: scale(0.8); opacity: 0.9; }
+  to { transform: scale(2); opacity: 0; }
+}
+
+.petal {
+  position: absolute; left: 50%; top: 50%; width: 8px; height: 5px; margin: -2.5px -4px;
+  border-radius: 100% 0; background: var(--c); pointer-events: none;
+  animation: petal 0.6s ease-out forwards;
+}
+@keyframes petal {
+  from { transform: rotate(var(--a)) translateX(28px); opacity: 1; }
+  to { transform: rotate(var(--a)) translateX(96px) rotate(120deg); opacity: 0; }
+}
+
+/* Page motion. Load: hero fades up in a stagger (--d delays). Scroll: sections reveal, step blocks grow. */
+.rise { animation: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms) both; }
+@keyframes fade-up { from { opacity: 0; transform: translateY(24px); } }
+
+/* Hero photo settles in with a slow zoom, then drifts slower than the page while scrolling (parallax).
+   No resting zoom: the image is shown at its own framing so it stays as sharp as the file. */
+.hero-img { transform-origin: 50% 70%; animation: settle 2.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes settle { from { scale: 1.08; } }
+
+.lift { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s; }
+.lift:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgb(26 33 48 / 0.14); }
+
+/* Scroll-driven parts only where supported; elsewhere everything is simply visible. */
+@supports (animation-timeline: view()) {
+  .hero-img {
+    animation: settle 2.4s cubic-bezier(0.22, 1, 0.36, 1) both, parallax linear both;
+    animation-timeline: auto, scroll(root);
+    animation-range: normal, 0 100vh;
+  }
+  @keyframes parallax { to { translate: 0 18%; } }
+
+  .reveal { animation: fade-up linear both; animation-timeline: view(); animation-range: entry 0% entry 70%; }
+
+  .grow-up { transform-origin: bottom; animation: grow-up linear both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
+  @keyframes grow-up { from { transform: scaleY(0.15); } }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .burst, .burst-shape, .burst-go, .ripple, .petal, .rise, .hero-img, .reveal, .grow-up { animation: none; transition: none; }
+  html { scroll-behavior: auto; }
+  .lift { transition: none; }
+  .lift:hover { transform: none; }
+  .ripple, .petal { display: none; }
 }

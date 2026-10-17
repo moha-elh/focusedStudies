@@ -47,3 +47,6 @@ next-env.d.ts
 # Created by "Pack extension" in the browser
 *.crx
 *.pem
+
+# design references and source images (kept locally, not shipped)
+/design

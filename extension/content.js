@@ -1,20 +1,39 @@
 const button = document.createElement("a");
-button.textContent = "Open in FocusLearn ↗";
 button.target = "_blank";
 button.rel = "noopener";
+// "F" tile matching the toolbar icon, then the label.
+const tile = document.createElement("span");
+tile.textContent = "F";
+Object.assign(tile.style, {
+  display: "grid",
+  placeItems: "center",
+  width: "28px",
+  height: "28px",
+  borderRadius: "8px",
+  background: "#142145",
+  color: "#fbfaf6",
+  fontSize: "14px",
+});
+button.append(tile, "Open in FocusLearn ↗");
 Object.assign(button.style, {
   position: "fixed",
   right: "24px",
   bottom: "24px",
   zIndex: "2147483647",
-  padding: "12px 20px",
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  padding: "8px 18px 8px 8px",
   borderRadius: "999px",
-  background: "#161616",
-  color: "#efeeeb",
-  font: "500 14px/1 system-ui, sans-serif",
+  background: "#fbfaf6",
+  color: "#1a2130",
+  font: "600 15px/1 system-ui, sans-serif",
   textDecoration: "none",
-  boxShadow: "0 2px 12px rgba(0, 0, 0, 0.25)",
+  boxShadow: "0 6px 24px rgba(0, 0, 0, 0.3)",
+  transition: "transform 0.2s",
 });
+button.addEventListener("mouseenter", () => (button.style.transform = "translateY(-2px)"));
+button.addEventListener("mouseleave", () => (button.style.transform = ""));
 
 // Leave YouTube's copy paused and start FocusLearn where you were.
 function handOff() {

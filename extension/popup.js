@@ -38,6 +38,7 @@ async function openTab(url, tab) {
   }
 
   $("video").hidden = false;
+  $("dot").hidden = false;
   $("thumb").src = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
   $("title").textContent = tab.title.replace(/^\(\d+\)\s*/, "").replace(/ - YouTube$/, "") || "YouTube video";
   const t = await videoTime(tab.id, false);

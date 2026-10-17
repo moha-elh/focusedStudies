@@ -2,60 +2,78 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600&display=swap" />
     <style>
+      /* Golden Hour tokens, mirrored from app/globals.css. */
       :root {
-        --canvas: #efeeeb;
-        --paper: #f7f6f3;
-        --line: #d3d1cb;
-        --muted: #85837e;
-        --ink: #161616;
+        --canvas: #f6f1e9;
+        --paper: #fbfaf6;
+        --line: #d9d5cb;
+        --muted: #62645f;
+        --ink: #1a2130;
+        --sky: #d8e5f8;
+        --sun: #f4a340;
       }
       * { box-sizing: border-box; margin: 0; }
       body {
-        width: 320px;
-        padding: 16px;
+        width: 340px;
+        padding: 20px;
         background: var(--canvas);
         color: var(--ink);
-        font: 400 14px/1.4 system-ui, sans-serif;
+        font: 400 14px/1.4 "Bricolage Grotesque", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
-      .mark { font-size: 16px; font-weight: 500; }
-      .mark sup { font-size: 12px; font-weight: 400; }
-      .card { margin-top: 16px; padding: 8px; border-radius: 16px; background: var(--paper); }
-      .thumb { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; background: var(--line); }
+      header { display: flex; align-items: center; justify-content: space-between; }
+      .mark { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+      .mark sup { font: 400 12px system-ui, sans-serif; font-variant-emoji: text; }
+      .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--sun); }
+      .card { margin-top: 20px; padding: 12px; border-radius: 20px; background: var(--paper); }
+      .thumb { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; background: var(--sky); }
       .title {
-        margin: 12px 4px 0;
-        font-weight: 500;
+        margin: 14px 2px 0;
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1.3;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
         overflow-wrap: anywhere;
       }
-      .meta { margin: 4px 4px 4px; font-size: 12px; color: var(--muted); }
+      .meta { margin: 8px 2px 2px; color: var(--muted); }
       .open {
         display: block;
         width: 100%;
-        margin-top: 12px;
-        padding: 12px 20px;
+        min-height: 48px;
+        margin-top: 16px;
         border: 0;
         border-radius: 999px;
         background: var(--ink);
-        color: var(--canvas);
+        color: var(--paper);
         font: inherit;
-        font-weight: 500;
+        font-size: 16px;
+        font-weight: 600;
         cursor: pointer;
+        transition: background-color 0.15s;
       }
-      .open:hover { opacity: 0.85; }
-      .open:disabled { opacity: 0.4; cursor: default; }
-      .empty { margin-top: 16px; padding: 20px; border-radius: 16px; background: var(--paper); }
-      .empty h1 { font-size: 16px; font-weight: 500; }
-      .empty p { margin-top: 4px; color: var(--muted); }
-      .link { display: inline-block; margin-top: 16px; color: var(--ink); text-underline-offset: 4px; }
+      .open:hover { background: #2b3650; }
+      .open:disabled { opacity: 0.5; cursor: default; }
+      .open:focus-visible, .link:focus-visible { outline: 2px solid #2f64a8; outline-offset: 3px; }
+      .empty { margin-top: 20px; padding: 20px; border-radius: 20px; background: var(--sky); }
+      .empty svg { display: block; width: 48px; height: 48px; margin-bottom: 14px; filter: drop-shadow(0 4px 8px rgb(26 33 48 / 0.12)); }
+      .empty h1 { font-size: 16px; font-weight: 600; }
+      .empty p { margin-top: 6px; font-size: 15px; line-height: 1.5; }
+      .link { display: inline-block; margin-top: 18px; font-size: 16px; color: var(--ink); text-underline-offset: 4px; }
+      .link:hover { color: #2f64a8; }
       [hidden] { display: none !important; }
     </style>
   </head>
   <body>
-    <p class="mark">FocusLearn<sup>®</sup></p>
+    <header>
+      <p class="mark">FocusLearn<sup>®</sup></p>
+      <span id="dot" class="dot" hidden></span>
+    </header>
 
     <section id="video" hidden>
       <div class="card">
@@ -66,9 +84,16 @@
       <button id="open" class="open">Open in FocusLearn ↗</button>
     </section>
 
-    <section id="none" class="empty" hidden>
-      <h1>No YouTube video detected</h1>
-      <p>Open a video on YouTube, then click here to watch it without the noise.</p>
+    <section id="none" hidden>
+      <div class="empty">
+        <!-- The app's starburst play badge. -->
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <path fill="#fff" d="M94.7 50.0 L97.4 54.1 L96.8 58.3 L93.1 61.5 L89.0 64.2 L87.3 67.4 L87.8 71.8 L87.8 76.5 L85.2 79.6 L80.6 80.6 L76.1 81.1 L73.4 83.5 L72.0 88.1 L69.9 92.7 L66.2 94.5 L61.6 93.2 L57.3 91.4 L53.7 91.7 L50.0 94.4 L45.9 96.7 L41.9 95.8 L38.8 92.0 L36.2 88.0 L32.9 86.6 L28.4 87.5 L23.5 87.9 L20.0 85.7 L18.8 81.2 L18.0 76.8 L15.6 74.1 L11.2 72.4 L6.9 70.1 L5.5 66.2 L7.3 61.5 L9.5 57.1 L9.4 53.6 L6.7 50.0 L4.2 46.0 L4.7 42.0 L8.1 38.8 L11.5 36.0 L12.6 32.6 L11.6 27.8 L11.2 22.8 L13.6 19.4 L18.3 18.3 L23.1 17.9 L26.1 15.9 L28.0 11.9 L30.4 7.9 L34.2 6.6 L38.8 8.2 L43.0 10.2 L46.5 9.6 L50.0 6.4 L54.1 3.5 L58.2 3.7 L61.5 7.0 L64.4 10.6 L67.8 11.9 L72.4 11.3 L77.1 11.3 L80.2 14.0 L81.0 19.0 L81.2 23.8 L83.2 26.8 L87.4 28.4 L91.7 30.5 L93.4 34.2 L92.3 38.7 L90.7 42.8 L91.5 46.4 L94.7 50.0Z" />
+          <path fill="#1a2130" d="M41 36 L64 50 L41 64 Z" stroke="#1a2130" stroke-width="5" stroke-linejoin="round" />
+        </svg>
+        <h1>No YouTube video detected</h1>
+        <p>Open a video on YouTube, then click here to watch it without the noise.</p>
+      </div>
       <a id="home" class="link" href="#">Go to FocusLearn ↗</a>
     </section>
 

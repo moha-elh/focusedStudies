@@ -11,6 +11,7 @@ type YTPlayer = {
   playVideo(): void;
   // Only present once the player is ready.
   getCurrentTime?(): number;
+  getDuration?(): number;
   seekTo?(seconds: number, allowSeekAhead: boolean): void;
 };
 
@@ -47,6 +48,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const [notes, setNotes] = useState<Note[]>(previousNotes);
   const [noteText, setNoteText] = useState("");
   const [now, setNow] = useState(start);
+  const [duration, setDuration] = useState(0);
   const [skips, setSkips] = useState<[number, number][]>([]);
   const [skipped, setSkipped] = useState(0);
   const [draftLoaded, setDraftLoaded] = useState(false);
@@ -93,6 +95,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
         setSkipped((n) => n + 1);
       }
       setNow(seg ? seg[1] : t);
+      setDuration(player.current?.getDuration?.() ?? 0);
     }, 500);
     return () => clearInterval(tick);
   }, [skips]);
@@ -157,155 +160,149 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   }
 
   return (
-    <main className="flex flex-col gap-6">
+    <main className="wrap flex flex-col gap-6 pt-4">
       {/* Kept mounted while recapping so "Back to video" resumes where you left off. */}
       <div className={done ? "hidden" : "flex flex-col gap-6"}>
-        <div className="flex flex-col gap-3 px-2 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
-          <h1 className="min-w-0 text-2xl font-medium line-clamp-2 sm:text-display">{title ?? "Focus session"}</h1>
-          <Label className="shrink-0">
+        <div className="rise flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
+          <h1 className="min-w-0 text-2xl font-semibold line-clamp-2 break-words sm:text-display">{title ?? "Focus session"}</h1>
+          <span className="inline-flex shrink-0 items-center gap-2.5 self-start rounded-full bg-paper px-4 py-2 text-sm lg:self-auto">
+            <span aria-hidden className="size-2 rounded-full bg-sun" />
             {skipped ? `Skipped ${skipped} sponsor ${skipped === 1 ? "segment" : "segments"}` : skips.length ? "Focus mode, sponsors skipped" : "Focus mode"}
-          </Label>
+          </span>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[1fr_340px]">
-          <div className="aspect-video w-full overflow-hidden rounded-hero bg-panel">
+        <div className="rise grid gap-6 [--d:100ms] lg:grid-cols-[1fr_340px]">
+          <div className="relative aspect-video w-full overflow-hidden rounded-hero bg-panel">
             <div ref={host} />
+            {/* Watch progress, in the sun color, along the bottom edge. */}
+            <div aria-hidden className="absolute inset-x-0 bottom-0 h-1 bg-ink/20">
+              <div className="h-full bg-sun transition-[width] duration-500 ease-linear" style={{ width: `${duration ? Math.min(100, (now / duration) * 100) : 0}%` }} />
+            </div>
           </div>
 
-          <section className="flex max-h-[28rem] min-h-64 flex-col rounded-hero bg-paper p-3 lg:max-h-none">
-            <div className="flex items-baseline justify-between px-3 pt-2 pb-3">
-              <h2 className="font-medium">Notes</h2>
-              <span className="text-xs text-muted">{notes.length ? `${notes.length} saved` : "Stamped with the video time"}</span>
+          <section className="flex max-h-[28rem] min-h-64 flex-col overflow-hidden rounded-hero bg-paper lg:max-h-none">
+            <div className="flex items-baseline justify-between border-b border-line px-5 pt-5 pb-4">
+              <h2 className="text-xl font-semibold">Notes</h2>
+              <span className="text-sm text-muted">{notes.length ? `${notes.length} saved` : "Stamped with the video time"}</span>
             </div>
-            <ol className="flex flex-1 flex-col overflow-y-auto">
+            <ol className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
               {notes.length === 0 && (
-                <li className="px-3 py-2 text-sm text-muted">
+                <li className="px-2 py-2 leading-normal text-muted">
                   Jot down anything worth keeping. Each note remembers its moment, so you can jump back to it later.
                 </li>
               )}
               {notes.map((n, i) => (
-                <li key={`${n.t}-${i}`} className="group flex items-start gap-3 rounded-media px-3 py-2 hover:bg-canvas">
-                  <button
-                    onClick={() => seek(n.t)}
-                    title="Jump to this moment"
-                    className="shrink-0 text-sm font-medium tabular-nums underline-offset-4 hover:underline"
-                  >
+                <li key={`${n.t}-${i}`} className="group flex items-start gap-3 rounded-media p-2 transition-colors hover:bg-canvas">
+                  <button onClick={() => seek(n.t)} title="Jump to this moment" className="pill-time shrink-0">
                     {fmtTime(n.t)}
                   </button>
-                  <p className="min-w-0 flex-1 text-sm break-words">{n.text}</p>
+                  <p className="min-w-0 flex-1 leading-normal break-words">{n.text}</p>
                   <button
                     onClick={() => setNotes((all) => all.filter((_, j) => j !== i))}
                     aria-label="Delete note"
-                    className="text-sm text-muted opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                    className="text-muted opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
                   >
                     ×
                   </button>
                 </li>
               ))}
             </ol>
-            <form onSubmit={addNote} className="mt-3 flex items-center gap-2 rounded-full bg-canvas p-1 pl-4">
-              <span className="text-sm text-muted tabular-nums">{fmtTime(now)}</span>
+            <form onSubmit={addNote} className="flex items-center gap-2 border-t border-line p-3">
+              <span className="w-12 shrink-0 text-center text-sm font-semibold text-muted tabular-nums">{fmtTime(now)}</span>
               <input
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
                 maxLength={1000}
                 aria-label="New note"
                 placeholder="Add a note…"
-                className="min-w-0 flex-1 bg-transparent py-2 text-sm outline-none placeholder:text-muted"
+                className="min-h-11 min-w-0 flex-1 rounded-full border border-line bg-white px-4 outline-none placeholder:text-muted focus:border-ink"
               />
-              <button
-                disabled={!noteText.trim()}
-                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition-opacity disabled:opacity-30"
-              >
+              <button disabled={!noteText.trim()} className="btn min-h-11 px-5 disabled:bg-line disabled:text-muted disabled:opacity-100">
                 Add
               </button>
             </form>
           </section>
         </div>
 
-        <div className="flex flex-col justify-between gap-4 px-2 sm:flex-row sm:items-center">
-          <p className="max-w-md text-sm text-muted">
+        <div className="rise flex flex-col justify-between gap-4 border-t border-line pt-6 [--d:200ms] sm:flex-row sm:items-center">
+          <p className="max-w-xl text-muted">
             {previousRecap
               ? "You've watched this before. When it ends, add to your recap and it'll be re-checked."
               : "When the video ends, you'll explain what you learned in your own words."}
           </p>
-          <button
-            onClick={finish}
-            className="self-start rounded-full bg-ink px-5 py-3 text-sm font-medium text-paper transition-opacity hover:opacity-85 sm:self-auto"
-          >
+          <button onClick={finish} className="btn self-start sm:self-auto">
             I&apos;m done watching ↗
           </button>
         </div>
       </div>
 
       {done && (
-        <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
-          <section className="flex min-w-0 flex-col gap-6 rounded-hero bg-paper p-6 sm:p-10">
-            <div className="flex flex-col gap-3">
+        <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+          <section className="rise flex min-w-0 flex-col gap-6 rounded-[32px] bg-paper p-6 sm:p-10 lg:p-14">
+            <div className="flex flex-col gap-4">
               <Label>{previousRecap ? "Revisit" : "Recall"}</Label>
-              <h2 className="text-display font-medium sm:text-h1">{previousRecap ? "Add to your recap." : "What did you learn?"}</h2>
-              <p className="max-w-xl text-muted">
+              <h2 className="text-h1 font-semibold sm:text-hero">{previousRecap ? "Add to your recap." : "What did you learn?"}</h2>
+              <p className="max-w-xl text-xl leading-normal text-muted">
                 {previousRecap
                   ? "Your earlier recap is below. Add what you picked up this time; the whole thing gets re-checked."
                   : "From memory, no peeking. We'll compare it with what the video actually said."}
               </p>
             </div>
-            <textarea
-              value={recap}
-              onChange={(e) => setRecap(e.target.value)}
-              rows={12}
-              autoFocus
-              disabled={busy}
-              className="w-full resize-y rounded-panel bg-canvas p-5 leading-relaxed outline-none transition placeholder:text-muted focus:ring-2 focus:ring-ink/20 disabled:opacity-60"
-              placeholder="The video explained that…"
-            />
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
-              <span className="text-sm text-muted sm:mr-auto">
+            <label className="flex flex-col gap-3">
+              <span className="text-sm font-semibold">Your recap</span>
+              <textarea
+                value={recap}
+                onChange={(e) => setRecap(e.target.value)}
+                rows={10}
+                autoFocus
+                disabled={busy}
+                className="w-full resize-y rounded-panel border border-line bg-white p-6 text-xl leading-normal outline-none transition placeholder:text-muted focus:border-ink disabled:opacity-60"
+                placeholder="The video explained that…"
+              />
+              <span className="text-sm text-muted">
                 {words} {words === 1 ? "word" : "words"}
                 {words > 0 && words < 30 && ", a few more sentences will give better feedback"}
               </span>
-              <button onClick={() => setDone(false)} disabled={busy} className="px-3 py-2 text-sm transition-colors hover:text-muted">
-                Back to video
+            </label>
+            {demo && (
+              <p className="rounded-panel bg-sun-soft px-5 py-4 text-sm leading-normal">
+                <strong className="font-semibold">Demo mode:</strong> no API key is set, so you&apos;ll get sample feedback. Add
+                ANTHROPIC_API_KEY to .env.local for real grading.
+              </p>
+            )}
+            {error && <p role="alert" className="text-bad">{error}</p>}
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button onClick={() => setDone(false)} disabled={busy} className="btn-outline">
+                ← Back to video
               </button>
-              <button
-                onClick={submit}
-                disabled={busy || recap.trim().length < 20}
-                className="flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-paper transition-opacity hover:opacity-85 disabled:opacity-40"
-              >
+              <button onClick={submit} disabled={busy || recap.trim().length < 20} className="btn disabled:opacity-40">
                 {busy && <Spinner />}
                 {busy ? "Comparing with the video…" : previousRecap ? "Update and re-check ↗" : "Check my understanding ↗"}
               </button>
             </div>
-            {error && <p className="text-sm text-bad">{error}</p>}
-            {demo && (
-              <p className="text-sm text-muted">
-                Demo mode: no API key is set, so you&apos;ll get sample feedback. Add ANTHROPIC_API_KEY to .env.local
-                for real grading.
-              </p>
-            )}
           </section>
 
-          <aside className="flex flex-col gap-3">
-            <div className="flex flex-col gap-3 rounded-hero bg-paper p-3">
-              <Thumb videoId={videoId} className="w-full" />
-              <p className="px-2 pb-2 text-sm text-muted line-clamp-2">{title}</p>
+          <aside className="rise flex flex-col gap-6 [--d:120ms]">
+            <div className="flex items-center gap-4">
+              <Thumb videoId={videoId} className="w-32" />
+              <p className="min-w-0 font-semibold line-clamp-2 break-words">{title}</p>
             </div>
-            <div className="flex flex-1 flex-col gap-4 rounded-hero bg-night p-6 text-night-ink">
-              <span className="text-xs text-night-ink/60">[ Stuck? Try answering ]</span>
-              <ol className="flex flex-col gap-3">
+            <div className="flex flex-col rounded-hero bg-night p-8 text-night-ink">
+              <h3 className="mb-4 text-2xl font-semibold">Stuck? Try answering</h3>
+              <ol className="flex flex-col">
                 {PROMPTS.map((p, i) => (
-                  <li key={p} className="flex gap-3 border-t border-night-ink/15 pt-3 text-sm">
-                    <span className="text-night-ink/50">0{i + 1}</span>
+                  <li key={p} className="flex gap-4 border-t border-night-2 py-4 leading-normal">
+                    <span className="font-semibold text-sun tabular-nums">0{i + 1}</span>
                     {p}
                   </li>
                 ))}
               </ol>
-              {notes.length > 0 && (
-                <p className="mt-auto border-t border-night-ink/15 pt-3 text-sm text-night-ink/60">
-                  Your {notes.length} {notes.length === 1 ? "note is" : "notes are"} saved with this video.
-                </p>
-              )}
             </div>
+            {notes.length > 0 && (
+              <p className="px-1 text-muted">
+                Your {notes.length} {notes.length === 1 ? "note is" : "notes are"} saved with this video.
+              </p>
+            )}
           </aside>
         </div>
       )}
