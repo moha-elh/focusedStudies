@@ -11,6 +11,12 @@ export function scoreOf(feedback: unknown): number | null {
   return typeof s === "number" ? s : null;
 }
 
+// Rounded mean of the graded sessions, or null if none were graded.
+export function avgScore(sessions: { feedback: unknown }[]) {
+  const scores = sessions.map((s) => scoreOf(s.feedback)).filter((n) => n !== null);
+  return scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+}
+
 export function scoreColor(score: number, onDark = false) {
   if (onDark) return score >= 80 ? "text-good-n" : score >= 50 ? "text-mid-n" : "text-bad-n";
   return score >= 80 ? "text-good" : score >= 50 ? "text-mid" : "text-bad";

@@ -4,19 +4,13 @@ import { listSessions } from "@/lib/db";
 import { parseVideoId } from "@/lib/youtube";
 import HeroCta from "./hero-cta";
 import SplitText from "./SplitText";
-import { Label, scoreColor, scoreOf, Thumb } from "./ui";
+import { avgScore, Label, scoreColor, scoreOf, Thumb } from "./ui";
 
 async function start(formData: FormData) {
   "use server";
   const id = parseVideoId(String(formData.get("url") ?? ""));
   redirect(id ? `/watch/${id}` : "/?invalid=1#start");
 }
-
-// Shared SplitText settings for the "Why FocusLearn" statement: words rise from behind a mask as it scrolls in.
-const STATEMENT = {
-  tag: "span", className: "!inline", splitType: "words", mask: true, delay: 40, duration: 1,
-  from: { opacity: 0, y: 40 }, to: { opacity: 1, y: 0 }, textAlign: "left", hoverEffect: "lift",
-};
 
 // Blocks step up like a rising sun: sky to full sun.
 const STEPS = [
@@ -30,8 +24,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
   const { invalid, paste } = await searchParams;
   const open = !!(invalid || paste);
   const sessions = await listSessions();
-  const scores = sessions.map((s) => scoreOf(s.feedback)).filter((n) => n !== null);
-  const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+  const avg = avgScore(sessions);
 
   return (
     <main>
@@ -69,8 +62,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
         <Label className="reveal mb-8">Why FocusLearn</Label>
         {/* Two SplitText runs keep the two-tone sentence; the muted half waits for the first to finish (14 words × 40ms). */}
         <p className="max-w-[1120px] text-display sm:text-h1">
-          <SplitText {...STATEMENT} text={"We believe the best way to learn from a video isn’t watching more, but"} />{" "}
-          <SplitText {...STATEMENT} className="!inline text-muted" to={{ opacity: 1, y: 0, delay: 0.56 }} text="remembering more. Close the tab on distraction, say it back in your own words, and find out what you really understood." />
+          <SplitText text={"We believe the best way to learn from a video isn’t watching more, but"} />{" "}
+          <SplitText className="text-muted" delay={0.56} text="remembering more. Close the tab on distraction, say it back in your own words, and find out what you really understood." />
         </p>
       </section>
 

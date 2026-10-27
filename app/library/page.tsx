@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { listSessions } from "@/lib/db";
-import { Label, scoreColor, scoreOf, Thumb } from "../ui";
+import { avgScore, Label, scoreColor, scoreOf, Thumb } from "../ui";
 
 export default async function Library() {
+  await connection(); // read the library per request; otherwise it's frozen at build time
   const sessions = await listSessions();
-  const scores = sessions.map((s) => scoreOf(s.feedback)).filter((n) => n !== null);
-  const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+  const avg = avgScore(sessions);
 
   return (
     <main className="wrap flex flex-col pt-10">

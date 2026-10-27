@@ -146,9 +146,9 @@ export default function Player({ videoId, title, start, previousRecap, previousN
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ videoId, recap, notes }),
-    });
-    const json = await res.json().catch(() => ({ error: "Something went wrong." }));
-    if (res.ok) {
+    }).catch(() => null);
+    const json = res ? await res.json().catch(() => ({ error: "Something went wrong." })) : { error: "Couldn't reach the server. Your recap is kept, try again." };
+    if (res?.ok) {
       try {
         localStorage.removeItem(draftKey);
       } catch {}
@@ -200,7 +200,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
                   <button
                     onClick={() => setNotes((all) => all.filter((_, j) => j !== i))}
                     aria-label="Delete note"
-                    className="text-muted opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                    className="text-muted transition-opacity pointer-fine:opacity-0 group-hover:opacity-100 focus:opacity-100"
                   >
                     ×
                   </button>
@@ -285,7 +285,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
           <aside className="rise flex flex-col gap-6 [--d:120ms]">
             <div className="flex items-center gap-4">
               <Thumb videoId={videoId} className="w-32" />
-              <p className="min-w-0 font-semibold line-clamp-2 break-words">{title}</p>
+              <p className="min-w-0 font-semibold line-clamp-2 break-words">{title ?? "Focus session"}</p>
             </div>
             <div className="flex flex-col rounded-hero bg-night p-8 text-night-ink">
               <h3 className="mb-4 text-2xl font-semibold">Stuck? Try answering</h3>

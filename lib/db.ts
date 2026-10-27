@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 
 // ponytail: single JSON file, no users. Swap for Supabase when accounts are added.
 const FILE = "data/sessions.json";
@@ -17,11 +17,13 @@ export type Session = {
   updated_at?: string;
 };
 
+// Only a missing file means "no sessions". Any other read or parse error throws, so a save can't overwrite the library.
 export async function listSessions(): Promise<Session[]> {
   try {
     return JSON.parse(await readFile(FILE, "utf8"));
-  } catch {
-    return [];
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw e;
   }
 }
 
@@ -42,6 +44,8 @@ export async function saveSession(s: Pick<Session, "video_id" | "title" | "recap
     ? { ...prev, ...s, title: s.title ?? prev.title, updated_at: now }
     : { ...s, id: randomUUID(), created_at: now };
   await mkdir("data", { recursive: true });
-  await writeFile(FILE, JSON.stringify([row, ...all.filter((x) => x.video_id !== s.video_id)], null, 2));
+  // Write then rename, so a crash mid-write never leaves a half-written file.
+  await writeFile(`${FILE}.tmp`, JSON.stringify([row, ...all.filter((x) => x.video_id !== s.video_id)], null, 2));
+  await rename(`${FILE}.tmp`, FILE);
   return row;
 }

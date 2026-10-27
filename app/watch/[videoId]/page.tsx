@@ -9,11 +9,13 @@ export default async function WatchPage({ params, searchParams }: Props) {
   const videoId = parseVideoId((await params).videoId);
   if (!videoId) notFound();
   const start = Math.max(0, Math.floor(Number((await searchParams).t) || 0));
-  const [title, existing] = await Promise.all([fetchTitle(videoId).catch(() => null), getSessionByVideo(videoId)]);
+  const existing = await getSessionByVideo(videoId);
+  // Only ask YouTube for the title the first time; after that it's saved with the session.
+  const title = existing?.title ?? (await fetchTitle(videoId).catch(() => null));
   return (
     <Player
       videoId={videoId}
-      title={title ?? existing?.title ?? null}
+      title={title}
       start={start}
       previousRecap={existing?.recap ?? ""}
       previousNotes={existing?.notes ?? []}

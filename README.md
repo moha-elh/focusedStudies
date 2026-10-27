@@ -21,7 +21,7 @@ Paste a YouTube link, watch it with no distractions, then explain what you learn
 2. `npm run dev` → http://localhost:3000
 3. Optional: create `.env.local` with `ANTHROPIC_API_KEY=...` for real grading. Without it, you get clearly labelled demo feedback.
 
-Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimental-strip-types lib/export.test.ts`
+Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimental-strip-types lib/export.test.ts && node --experimental-strip-types lib/db.test.ts`
 
 ### Browser extension
 1. Open `chrome://extensions` (or `edge://extensions`) and turn on Developer mode.

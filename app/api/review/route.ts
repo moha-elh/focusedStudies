@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     YoutubeTranscript.fetchTranscript(videoId)
       .then((parts) => timestampedTranscript(parts))
       .catch((e) => {
-        console.error("transcript", videoId, e);
+        console.warn("transcript", videoId, e instanceof Error ? e.message : e);
         return null;
       }),
   ]);
