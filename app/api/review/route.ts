@@ -93,7 +93,7 @@ export async function POST(req: Request) {
   ]);
 
   let feedback: Feedback | { error: string };
-  if (!transcript) feedback = { error: "This video has no captions, so it couldn't be graded. Your notes are saved." };
+  if (!transcript) feedback = { error: "We couldn't get this video's captions (it may not have any), so it couldn't be graded. Your notes are saved." };
   else if (transcript.length > MAX_TRANSCRIPT_CHARS) feedback = { error: "This video is too long to grade. Your notes are saved." };
   else if (!process.env.GROQ_API_KEY && !process.env.ANTHROPIC_API_KEY) feedback = DEMO;
   else {

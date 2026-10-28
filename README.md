@@ -29,6 +29,14 @@ Paste a YouTube link, watch it with no distractions, then explain what you learn
 
 Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimental-strip-types lib/export.test.ts && node --experimental-strip-types lib/safe-next.test.ts`
 
+### Deploy (Vercel)
+1. Push to GitHub, then on vercel.com: Add New → Project → import this repo. Framework: Next.js (detected); no build settings to change.
+2. Environment variables (Project → Settings → Environment Variables): `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`. The secret key is not needed in production.
+3. Supabase → Authentication → URL Configuration: set Site URL to your Vercel URL (e.g. `https://focuslearn.vercel.app`) and add `https://<your-url>/auth/callback` to Redirect URLs. Keep the localhost entries for local dev.
+4. Run `supabase/schema.sql` again in the SQL Editor (adds the `feedback` table). Feedback from the in-app button lands in Table Editor → `feedback`.
+5. Supabase's built-in email only sends a few sign-in emails per hour. Before inviting testers, add an SMTP provider (Authentication → Emails → SMTP, e.g. Resend's free tier).
+6. After deploying, set `FOCUSLEARN` in `extension/shared.js` to your Vercel URL and reload the extension.
+
 ### Browser extension
 1. Open `chrome://extensions` (or `edge://extensions`) and turn on Developer mode.
 2. Click "Load unpacked" and pick the `extension` folder.

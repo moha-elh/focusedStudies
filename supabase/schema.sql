@@ -25,3 +25,17 @@ drop policy if exists "own sessions" on public.sessions;
 create policy "own sessions" on public.sessions for all to authenticated
   using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
+
+-- Feedback from the in-app "Feedback" button. Anyone can send (signed in or not); nobody can read it back through
+-- the app. Read it in the Supabase dashboard: Table Editor → feedback.
+create table if not exists public.feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid default auth.uid() references auth.users (id) on delete set null,
+  message text not null check (char_length(message) between 1 and 2000),
+  page text check (char_length(page) <= 200),
+  created_at timestamptz not null default now()
+);
+alter table public.feedback enable row level security;
+drop policy if exists "anyone can send feedback" on public.feedback;
+create policy "anyone can send feedback" on public.feedback for insert to anon, authenticated
+  with check (user_id is null or user_id = (select auth.uid()));

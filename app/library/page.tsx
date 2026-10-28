@@ -32,7 +32,7 @@ export default async function Library() {
       {!sessions.length ? (
         <section className="rise relative mt-8 overflow-hidden rounded-[32px] bg-[#4d8fd9] [--d:150ms]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hero2.png" alt="" className="absolute inset-0 size-full object-cover object-[50%_70%]" />
+          <img src="/hero2.webp" alt="" className="absolute inset-0 size-full object-cover object-[50%_70%]" />
           <div className="relative m-4 flex max-w-md flex-col gap-4 rounded-panel bg-paper p-6 sm:m-10">
             <h2 className="text-2xl font-semibold">Your first lesson is one link away.</h2>
             <p className="leading-normal text-muted">

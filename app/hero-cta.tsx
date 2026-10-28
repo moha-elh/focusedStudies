@@ -66,7 +66,7 @@ export default function HeroCta({ action, defaultOpen }: { action: (f: FormData)
               aria-label="Start watching: paste a YouTube link"
               className={`burst relative grid size-20 place-items-center sm:size-24 ${phase === "opening" ? "burst-go" : ""}`}
             >
-              <Burst icon="size-7 translate-x-[6%] sm:size-8" />
+              <Burst icon="size-7 -translate-x-[2%] sm:size-8" />
             </button>
             {phase === "opening" && (
               <>

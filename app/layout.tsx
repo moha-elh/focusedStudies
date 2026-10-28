@@ -3,6 +3,7 @@ import { Bricolage_Grotesque } from "next/font/google";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser, supabase } from "@/lib/supabase";
+import Feedback from "./feedback";
 import NavLinks, { PasteButton } from "./nav-links";
 import { LINKS, Mark } from "./ui";
 import "./globals.css";
@@ -20,10 +21,23 @@ const SOCIALS = [
   ["YouTube", "https://youtube.com/", "M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.2 3.6-6.2 3.6Z"],
 ];
 
+// The link preview image is app/opengraph-image.jpg; on Vercel, Next fills in the site's own URL for it.
 export const metadata: Metadata = {
   title: "FocusLearn",
   description: "Watch one video with no distractions, then prove you learned it.",
+  twitter: { card: "summary_large_image" },
 };
+
+// Anyone can send feedback, signed in or not; the database records who (if anyone) and caps the length.
+async function sendFeedback(_prev: "sent" | "error" | null, formData: FormData) {
+  "use server";
+  const message = String(formData.get("message") ?? "").trim().slice(0, 2000);
+  if (!message) return "error";
+  const page = String(formData.get("page") ?? "").slice(0, 200);
+  const { error } = await (await supabase()).from("feedback").insert({ message, page });
+  if (error) console.warn("feedback", error.message);
+  return error ? "error" : "sent";
+}
 
 async function signOut() {
   "use server";
@@ -44,48 +58,65 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <Mark />
           </Link>
           <NavLinks />
-          <div className="flex shrink-0 items-center gap-4">
+          <div className="flex shrink-0 items-center gap-3">
+            <PasteButton />
+            {/* Kept smaller than the play button so it does not compete with it. */}
             {user ? (
               <form action={signOut}>
-                <button title={String(user.email ?? "")} className="py-3 text-sm text-muted transition-colors hover:text-ink">Sign out</button>
+                <button className="inline-flex min-h-9 items-center rounded-full bg-paper px-4 text-sm font-semibold shadow-[0_2px_8px_rgb(26_33_48/0.08)] transition-colors hover:bg-sky">
+                  Sign out
+                </button>
               </form>
             ) : (
-              <Link href="/login" className="py-3 text-sm font-semibold transition-colors hover:text-link">Sign in</Link>
+              <Link href="/login" className="btn min-h-9 px-4 text-sm">Sign in</Link>
             )}
-            <PasteButton />
           </div>
         </header>
 
         <div className="flex flex-1 flex-col">{children}</div>
+        <Feedback action={sendFeedback} />
 
-        <footer className="wrap mt-32 pb-6">
-          <div className="reveal flex flex-col items-center gap-10 rounded-[32px] bg-night px-6 pt-16 pb-8 text-center text-night-ink sm:px-10">
-            <div className="text-hero font-semibold sm:text-mark">
-              <Mark />
+        <footer className="mt-32 overflow-hidden bg-night text-night-ink">
+          <div className="wrap grid gap-12 pt-20 pb-12 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
+            <div className="flex flex-col gap-5">
+              <Link href="/" className="w-fit text-display font-semibold"><Mark /></Link>
+              <p className="max-w-[360px] leading-normal text-night-muted">
+                For anyone who wants to remember what they watch, not just finish it.
+              </p>
+              <ul className="flex gap-3">
+                {SOCIALS.map(([label, href, path]) => (
+                  <li key={label}>
+                    <a href={href} aria-label={label} className="grid size-11 place-items-center rounded-full bg-night-2 transition-colors hover:bg-sun hover:text-ink">
+                      <svg viewBox="0 0 24 24" aria-hidden className="size-5 fill-current"><path d={path} /></svg>
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <p className="max-w-[420px] text-xl leading-[1.4] text-night-muted">
-              For anyone who wants to remember what they watch, not just finish it.
-            </p>
-            <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-8 gap-y-2">
-              {LINKS.map(([label, href]) => (
-                <Link key={href} href={href} className="py-3 transition-colors hover:text-sun">{label}</Link>
-              ))}
+            <nav aria-label="Footer">
+              <p className="mb-3 text-sm text-night-muted">Product</p>
+              <ul>
+                {LINKS.map(([label, href]) => (
+                  <li key={href}><Link href={href} className="inline-block py-2 transition-colors hover:text-sun">{label}</Link></li>
+                ))}
+              </ul>
             </nav>
-            <ul className="flex gap-3">
-              {SOCIALS.map(([label, href, path]) => (
-                <li key={label}>
-                  <a
-                    href={href}
-                    aria-label={label}
-                    className="grid size-12 place-items-center rounded-full bg-night-2 transition duration-300 hover:-translate-y-1 hover:bg-sun hover:text-ink"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden className="size-5 fill-current"><path d={path} /></svg>
-                  </a>
-                </li>
-              ))}
-            </ul>
-            <div className="w-full border-t border-night-2 pt-6 text-sm text-night-muted">© 2026 FocusLearn</div>
+            <div>
+              <p className="mb-3 text-sm text-night-muted">Get started</p>
+              <ul>
+                <li><Link href="/?paste=1#start" className="inline-block py-2 transition-colors hover:text-sun">Paste a link</Link></li>
+                {!user && <li><Link href="/login" className="inline-block py-2 transition-colors hover:text-sun">Sign in</Link></li>}
+              </ul>
+            </div>
           </div>
+          <div className="wrap flex flex-wrap justify-between gap-2 border-t border-night-2 py-6 text-sm text-night-muted">
+            <span>© 2026 FocusLearn</span>
+            <span>Remember what you watch.</span>
+          </div>
+          {/* Oversized wordmark as a signature, cropped by the page edge. */}
+          <p aria-hidden className="wrap -mb-[0.18em] text-hero leading-none font-semibold tracking-tight whitespace-nowrap text-night-2 select-none sm:text-mark">
+            FocusLearn
+          </p>
         </footer>
       </body>
     </html>
