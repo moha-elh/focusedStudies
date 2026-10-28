@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Feedback, FeedbackPoint } from "@/app/api/review/route";
-import { getSession } from "@/lib/db";
+import { getSession, type Note } from "@/lib/db";
 import { toMarkdown, toPoint } from "@/lib/export";
 import { fmtTime } from "@/lib/youtube";
 import { ScoreRing, scoreColor, Thumb } from "../../ui";
@@ -25,6 +25,8 @@ const SECTIONS = [
 
 // Each list shows its top points; "See all" opens the full list in a pop-up.
 const SHOWN = 3; // keep in step with row-span-5 / row-span-3 in the results grid
+const NOTES_SHOWN = 5;
+const RECAP_WORDS_SHOWN = 120; // about 12 lines of the recap panel
 
 function PointItem({ p, videoId }: { p: FeedbackPoint; videoId: string }) {
   return (
@@ -35,6 +37,41 @@ function PointItem({ p, videoId }: { p: FeedbackPoint; videoId: string }) {
           <span aria-hidden className="text-xs">▶</span> {fmtTime(p.t)}
         </Link>
       )}
+    </li>
+  );
+}
+
+// "See all" button plus a native popover with the full content: opens on top of the page, Esc or a click outside closes it.
+function SeeAll({ id, label, heading, children }: { id: string; label: string; heading: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <>
+      <button popoverTarget={id} className="self-start justify-self-start py-4 text-sm font-semibold transition-colors hover:text-link">
+        {label} ↗
+      </button>
+      <div
+        id={id}
+        popover="auto"
+        className="m-auto max-h-[85vh] w-[min(720px,calc(100vw-32px))] overflow-y-auto rounded-hero bg-canvas p-6 text-ink shadow-[0_24px_64px_rgb(26_33_48/0.3)] backdrop:bg-ink/40 sm:p-10"
+      >
+        <div className="mb-2 flex items-center gap-3 border-b-2 border-ink pb-4">
+          {heading}
+          <button popoverTarget={id} popoverTargetAction="hide" aria-label="Close" className="ml-auto grid size-11 place-items-center rounded-full text-2xl transition-colors hover:bg-paper">
+            ×
+          </button>
+        </div>
+        {children}
+      </div>
+    </>
+  );
+}
+
+function NoteItem({ n, videoId }: { n: Note; videoId: string }) {
+  return (
+    <li className="flex items-start gap-4 border-b border-line py-4 last:border-b-0">
+      <Link href={`/watch/${videoId}?t=${n.t}`} title="Watch this moment" className="pill-time shrink-0">
+        {fmtTime(n.t)}
+      </Link>
+      <p className="min-w-0 leading-normal break-words">{n.text}</p>
     </li>
   );
 }
@@ -102,28 +139,13 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
                   <>
                     <ul className="row-span-3 grid grid-rows-subgrid">{fb[key].slice(0, SHOWN).map(toPoint).map((p, i) => <PointItem key={i} p={p} videoId={s.video_id} />)}</ul>
                     {fb[key].length > SHOWN && (
-                      <>
-                        <button popoverTarget={`all-${key}`} className="self-start justify-self-start py-4 text-sm font-semibold transition-colors hover:text-link">
-                          See all {fb[key].length} ↗
-                        </button>
-                        {/* Native popover: opens on top of the page, Esc or a click outside closes it. */}
-                        <div
-                          id={`all-${key}`}
-                          popover="auto"
-                          aria-label={title}
-                          className="m-auto max-h-[85vh] w-[min(720px,calc(100vw-32px))] overflow-y-auto rounded-hero bg-canvas p-6 text-ink shadow-[0_24px_64px_rgb(26_33_48/0.3)] backdrop:bg-ink/40 sm:p-10"
-                        >
-                          <div className={`flex items-center gap-3 border-b-2 pb-4 ${rule}`}>
-                            <svg width="24" height="24" viewBox="0 0 28 28" aria-hidden className="shrink-0">{icon}</svg>
-                            <h3 className="text-2xl font-semibold">{title}</h3>
-                            <span className={`tabular-nums text-xl font-semibold ${text}`}>{fb[key].length}</span>
-                            <button popoverTarget={`all-${key}`} popoverTargetAction="hide" aria-label="Close" className="ml-auto grid size-11 place-items-center rounded-full text-2xl transition-colors hover:bg-paper">
-                              ×
-                            </button>
-                          </div>
-                          <ul className="flex flex-col">{fb[key].map(toPoint).map((p, i) => <PointItem key={i} p={p} videoId={s.video_id} />)}</ul>
-                        </div>
-                      </>
+                      <SeeAll
+                        id={`all-${key}`}
+                        label={`See all ${fb[key].length}`}
+                        heading={<><svg width="24" height="24" viewBox="0 0 28 28" aria-hidden className="shrink-0">{icon}</svg><h3 className="text-2xl font-semibold">{title}</h3><span className={`text-xl font-semibold tabular-nums ${text}`}>{fb[key].length}</span></>}
+                      >
+                        <ul className="flex flex-col">{fb[key].map(toPoint).map((p, i) => <PointItem key={i} p={p} videoId={s.video_id} />)}</ul>
+                      </SeeAll>
                     )}
                   </>
                 ) : (
@@ -135,28 +157,33 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
         </>
       ) : null}
 
-      <div className="mt-24 grid gap-12 lg:grid-cols-[2fr_3fr]">
+      {/* Same idea as the results: notes and recap share rows (heading, count, panel, "See all"), so both panels are the same height. */}
+      <div className="mt-24 grid gap-x-12 lg:grid-cols-[2fr_3fr]">
         {!!s.notes?.length && (
-          <section className="reveal flex flex-col">
+          <section className="reveal row-span-4 mb-12 grid min-w-0 grid-rows-subgrid lg:mb-0">
             <h2 className="text-2xl font-semibold">Notes while watching</h2>
             <p className="mb-4 text-sm text-muted">{s.notes.length} {s.notes.length === 1 ? "note" : "notes"}</p>
-            <ol className="border-t border-line">
-              {s.notes.map((n, i) => (
-                <li key={i} className="flex items-start gap-4 border-b border-line py-4">
-                  <Link href={`/watch/${s.video_id}?t=${n.t}`} title="Watch this moment" className="pill-time shrink-0">
-                    {fmtTime(n.t)}
-                  </Link>
-                  <p className="min-w-0 leading-normal break-words">{n.text}</p>
-                </li>
-              ))}
+            <ol className="rounded-panel bg-paper px-6 py-2">
+              {s.notes.slice(0, NOTES_SHOWN).map((n, i) => <NoteItem key={i} n={n} videoId={s.video_id} />)}
             </ol>
+            {s.notes.length > NOTES_SHOWN && (
+              <SeeAll id="all-notes" label={`See all ${s.notes.length} notes`} heading={<h3 className="text-2xl font-semibold">Notes while watching</h3>}>
+                <ol>{s.notes.map((n, i) => <NoteItem key={i} n={n} videoId={s.video_id} />)}</ol>
+              </SeeAll>
+            )}
           </section>
         )}
 
-        <section className="reveal flex flex-col lg:col-start-2">
+        <section className="reveal row-span-4 grid min-w-0 grid-rows-subgrid lg:col-start-2">
           <h2 className="text-2xl font-semibold">Your recap</h2>
           <p className="mb-4 text-sm text-muted">{recapWords} {recapWords === 1 ? "word" : "words"}</p>
-          <p className="rounded-panel bg-paper p-6 text-xl leading-[1.6] break-words whitespace-pre-wrap sm:p-8">{s.recap}</p>
+          <p className="line-clamp-[12] rounded-panel bg-paper p-6 text-xl leading-[1.6] break-words whitespace-pre-wrap sm:p-8">{s.recap}</p>
+          {/* ponytail: word count stands in for "was it clamped"; measure overflow on the client if this misfires. */}
+          {recapWords > RECAP_WORDS_SHOWN && (
+            <SeeAll id="all-recap" label="Read the full recap" heading={<h3 className="text-2xl font-semibold">Your recap</h3>}>
+              <p className="pt-4 text-xl leading-[1.6] break-words whitespace-pre-wrap">{s.recap}</p>
+            </SeeAll>
+          )}
         </section>
       </div>
     </main>
