@@ -267,7 +267,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
             {demo && (
               <p className="rounded-panel bg-sun-soft px-5 py-4 text-sm leading-normal">
                 <strong className="font-semibold">Demo mode:</strong> no API key is set, so you&apos;ll get sample feedback. Add
-                ANTHROPIC_API_KEY to .env.local for real grading.
+                GROQ_API_KEY (or ANTHROPIC_API_KEY) to .env.local for real grading.
               </p>
             )}
             {error && <p role="alert" className="text-bad">{error}</p>}

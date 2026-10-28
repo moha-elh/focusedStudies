@@ -19,7 +19,7 @@ export default async function WatchPage({ params, searchParams }: Props) {
       start={start}
       previousRecap={existing?.recap ?? ""}
       previousNotes={existing?.notes ?? []}
-      demo={!process.env.ANTHROPIC_API_KEY}
+      demo={!process.env.GROQ_API_KEY && !process.env.ANTHROPIC_API_KEY}
     />
   );
 }

@@ -19,7 +19,8 @@ Paste a YouTube link, watch it with no distractions, then explain what you learn
 ## Run
 1. `npm install`
 2. `npm run dev` → http://localhost:3000
-3. Optional: create `.env.local` with `ANTHROPIC_API_KEY=...` for real grading. Without it, you get clearly labelled demo feedback.
+3. Optional: create `.env.local` with `GROQ_API_KEY=...` (console.groq.com, free tier) or `ANTHROPIC_API_KEY=...` for real grading; Groq wins if both are set. Without it, you get clearly labelled demo feedback.
+4. Optional, cloud database: create a Supabase project, run `supabase/schema.sql` in its SQL Editor, then add `SUPABASE_URL` (Project Settings → Data API → Project URL) and `SUPABASE_SECRET_KEY` (Project Settings → API keys → secret key; the publishable key is not needed) to `.env.local`. Without them, sessions are saved in `data/sessions.json`. To move existing local sessions over: `node --env-file=.env.local --experimental-strip-types scripts/import-sessions.ts`
 
 Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimental-strip-types lib/export.test.ts && node --experimental-strip-types lib/db.test.ts`
 
@@ -32,8 +33,8 @@ FocusLearn has to be running (`npm run dev`). Don't use "Pack extension"; it isn
 It points to `http://localhost:3000`; change `FOCUSLEARN` in `extension/shared.js` after deploying.
 
 ## Tech
-Next.js 16 (App Router), Tailwind CSS 4, Claude API (`@anthropic-ai/sdk`), `youtube-transcript`.
-Data is stored locally in `data/sessions.json`. There are no accounts yet.
+Next.js 16 (App Router), Tailwind CSS 4, Groq (`openai/gpt-oss-120b`) or Claude API (`@anthropic-ai/sdk`), Supabase, `youtube-transcript`.
+Data is stored in Supabase (Postgres) when configured, otherwise locally in `data/sessions.json`. There are no accounts yet.
 
 ## Roadmap
 
@@ -49,7 +50,8 @@ Done
 - [x] Browser extension: "Open in FocusLearn" button on YouTube
 
 **P0: left for last (blocks local testing)**
-- [ ] Accounts + cloud database (Supabase)
+- [x] Cloud database (Supabase)
+- [ ] Accounts (Supabase Auth, one library per user)
 - [ ] Deploy (Vercel) + reliable transcripts in production (paid transcript API fallback)
 
 **P1**
