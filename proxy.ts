@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Pages anyone can open. Everything else needs a signed-in user.
-const PUBLIC = ["/", "/login", "/auth/callback"];
+const PUBLIC = ["/", "/login", "/auth/callback", "/privacy"];
 
 // Runs before every page and API call: refreshes the Supabase session cookie, then gates signed-out visitors.
 export async function proxy(req: NextRequest) {

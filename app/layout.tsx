@@ -111,7 +111,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </div>
           <div className="wrap flex flex-wrap justify-between gap-2 border-t border-night-2 py-6 text-sm text-night-muted">
             <span>© 2026 FocusLearn</span>
-            <span>Remember what you watch.</span>
+            <Link href="/privacy" className="transition-colors hover:text-sun">Privacy</Link>
           </div>
           {/* Oversized wordmark as a signature, cropped by the page edge. */}
           <p aria-hidden className="wrap -mb-[0.18em] text-hero leading-none font-semibold tracking-tight whitespace-nowrap text-night-2 select-none sm:text-mark">

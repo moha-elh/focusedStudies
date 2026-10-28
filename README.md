@@ -24,6 +24,9 @@ Paste a YouTube link, watch it with no distractions, then explain what you learn
    - Create a project, then run `supabase/schema.sql` in its SQL Editor.
    - Put the Project URL (bare, `https://<ref>.supabase.co`), the publishable key and the secret key in `.env.local` (see `.env.example`).
    - Authentication → URL Configuration: Site URL `http://localhost:3000`, and add `http://localhost:3000/auth/callback` to Redirect URLs.
+   - Sign-in providers (Authentication → Sign In / Providers), both free. Each asks for an authorized callback URL: use the one Supabase shows, `https://<ref>.supabase.co/auth/v1/callback`.
+     - GitHub: github.com/settings/developers → New OAuth App (homepage `http://localhost:3000`), then paste the Client ID and a new client secret into Supabase.
+     - Google: console.cloud.google.com → APIs & Services → Credentials → Create OAuth client ID (Web application; set up the consent screen when asked), then paste the Client ID and secret into Supabase.
    - Sessions saved before accounts existed: sign in once, then `node --env-file=.env.local --experimental-strip-types scripts/claim-sessions.ts you@example.com`
    - Security check: `node --env-file=.env.local --experimental-strip-types scripts/check-rls.ts` (signed-out access must be blocked).
 
@@ -34,7 +37,7 @@ Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimenta
 2. Environment variables (Project → Settings → Environment Variables): `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`. The secret key is not needed in production.
 3. Supabase → Authentication → URL Configuration: set Site URL to your Vercel URL (e.g. `https://focuslearn.vercel.app`) and add `https://<your-url>/auth/callback` to Redirect URLs. Keep the localhost entries for local dev.
 4. Run `supabase/schema.sql` again in the SQL Editor (adds the `feedback` table). Feedback from the in-app button lands in Table Editor → `feedback`.
-5. Supabase's built-in email only sends a few sign-in emails per hour. Before inviting testers, add an SMTP provider (Authentication → Emails → SMTP, e.g. Resend's free tier).
+5. Google/GitHub sign-in needs nothing more for production: the providers call back to Supabase's URL, which doesn't change.
 6. After deploying, set `FOCUSLEARN` in `extension/shared.js` to your Vercel URL and reload the extension.
 
 ### Browser extension
@@ -47,7 +50,7 @@ It points to `http://localhost:3000`; change `FOCUSLEARN` in `extension/shared.j
 
 ## Tech
 Next.js 16 (App Router), Tailwind CSS 4, Groq (`openai/gpt-oss-120b`) or Claude API (`@anthropic-ai/sdk`), Supabase, `youtube-transcript`.
-Sign-in is an email magic link (Supabase Auth). Sessions live in Supabase Postgres; row-level security limits each user to their own rows, and the app only uses the publishable key on the server.
+Sign-in is Google or GitHub (Supabase Auth, OAuth), so no emails are sent. Sessions live in Supabase Postgres; row-level security limits each user to their own rows, and the app only uses the publishable key on the server.
 
 ## Roadmap
 
