@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { currentUser, supabase } from "@/lib/supabase";
 import NavLinks, { PasteButton } from "./nav-links";
 import { LINKS, Mark } from "./ui";
 import "./globals.css";
@@ -23,7 +25,14 @@ export const metadata: Metadata = {
   description: "Watch one video with no distractions, then prove you learned it.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+async function signOut() {
+  "use server";
+  await (await supabase()).auth.signOut();
+  redirect("/");
+}
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await currentUser();
   return (
     // Browser extensions (Grammarly and others) add attributes to <html> and <body> before React loads;
     // ignore those. This only covers these two tags, so real mismatches inside the app are still reported.
@@ -35,7 +44,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Mark />
           </Link>
           <NavLinks />
-          <PasteButton />
+          <div className="flex shrink-0 items-center gap-4">
+            {user ? (
+              <form action={signOut}>
+                <button title={String(user.email ?? "")} className="py-3 text-sm text-muted transition-colors hover:text-ink">Sign out</button>
+              </form>
+            ) : (
+              <Link href="/login" className="py-3 text-sm font-semibold transition-colors hover:text-link">Sign in</Link>
+            )}
+            <PasteButton />
+          </div>
         </header>
 
         <div className="flex flex-1 flex-col">{children}</div>

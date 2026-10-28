@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listSessions } from "@/lib/db";
+import { currentUser } from "@/lib/supabase";
 import { parseVideoId } from "@/lib/youtube";
 import HeroCta from "./hero-cta";
 import SplitText from "./SplitText";
@@ -23,7 +24,8 @@ const STEPS = [
 export default async function Home({ searchParams }: { searchParams: Promise<{ invalid?: string; paste?: string }> }) {
   const { invalid, paste } = await searchParams;
   const open = !!(invalid || paste);
-  const sessions = await listSessions();
+  // Public landing page: only signed-in visitors get their recent notes below.
+  const sessions = (await currentUser()) ? await listSessions() : [];
   const avg = avgScore(sessions);
 
   return (

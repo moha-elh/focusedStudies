@@ -20,9 +20,14 @@ Paste a YouTube link, watch it with no distractions, then explain what you learn
 1. `npm install`
 2. `npm run dev` → http://localhost:3000
 3. Optional: create `.env.local` with `GROQ_API_KEY=...` (console.groq.com, free tier) or `ANTHROPIC_API_KEY=...` for real grading; Groq wins if both are set. Without it, you get clearly labelled demo feedback.
-4. Optional, cloud database: create a Supabase project, run `supabase/schema.sql` in its SQL Editor, then add `SUPABASE_URL` (Project Settings → Data API → Project URL) and `SUPABASE_SECRET_KEY` (Project Settings → API keys → secret key; the publishable key is not needed) to `.env.local`. Without them, sessions are saved in `data/sessions.json`. To move existing local sessions over: `node --env-file=.env.local --experimental-strip-types scripts/import-sessions.ts`
+4. Supabase (accounts + database), needed to sign in and save:
+   - Create a project, then run `supabase/schema.sql` in its SQL Editor.
+   - Put the Project URL (bare, `https://<ref>.supabase.co`), the publishable key and the secret key in `.env.local` (see `.env.example`).
+   - Authentication → URL Configuration: Site URL `http://localhost:3000`, and add `http://localhost:3000/auth/callback` to Redirect URLs.
+   - Sessions saved before accounts existed: sign in once, then `node --env-file=.env.local --experimental-strip-types scripts/claim-sessions.ts you@example.com`
+   - Security check: `node --env-file=.env.local --experimental-strip-types scripts/check-rls.ts` (signed-out access must be blocked).
 
-Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimental-strip-types lib/export.test.ts && node --experimental-strip-types lib/db.test.ts`
+Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimental-strip-types lib/export.test.ts && node --experimental-strip-types lib/safe-next.test.ts`
 
 ### Browser extension
 1. Open `chrome://extensions` (or `edge://extensions`) and turn on Developer mode.
@@ -34,7 +39,7 @@ It points to `http://localhost:3000`; change `FOCUSLEARN` in `extension/shared.j
 
 ## Tech
 Next.js 16 (App Router), Tailwind CSS 4, Groq (`openai/gpt-oss-120b`) or Claude API (`@anthropic-ai/sdk`), Supabase, `youtube-transcript`.
-Data is stored in Supabase (Postgres) when configured, otherwise locally in `data/sessions.json`. There are no accounts yet.
+Sign-in is an email magic link (Supabase Auth). Sessions live in Supabase Postgres; row-level security limits each user to their own rows, and the app only uses the publishable key on the server.
 
 ## Roadmap
 
@@ -51,7 +56,7 @@ Done
 
 **P0: left for last (blocks local testing)**
 - [x] Cloud database (Supabase)
-- [ ] Accounts (Supabase Auth, one library per user)
+- [x] Accounts (Supabase Auth, one library per user)
 - [ ] Deploy (Vercel) + reliable transcripts in production (paid transcript API fallback)
 
 **P1**

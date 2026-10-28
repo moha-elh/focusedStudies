@@ -1,10 +1,8 @@
 import Link from "next/link";
-import { connection } from "next/server";
 import { listSessions } from "@/lib/db";
 import { avgScore, Label, scoreColor, scoreOf, Thumb } from "../ui";
 
 export default async function Library() {
-  await connection(); // read the library per request; otherwise it's frozen at build time
   const sessions = await listSessions();
   const avg = avgScore(sessions);
 

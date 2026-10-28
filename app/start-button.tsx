@@ -3,7 +3,8 @@
 import { useFormStatus } from "react-dom";
 import { Spinner } from "./ui";
 
-export default function StartButton() {
+// Submit button that shows a spinner while its form's server action runs.
+export default function StartButton({ idle = "Start watching ↗", pending: busy = "Opening…" }: { idle?: string; pending?: string }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -11,7 +12,7 @@ export default function StartButton() {
       className="btn shrink-0"
     >
       {pending && <Spinner />}
-      {pending ? "Opening…" : "Start watching ↗"}
+      {pending ? busy : idle}
     </button>
   );
 }

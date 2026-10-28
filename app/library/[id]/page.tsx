@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { Feedback } from "@/app/api/review/route";
+import type { Feedback, FeedbackPoint } from "@/app/api/review/route";
 import { getSession } from "@/lib/db";
 import { toMarkdown, toPoint } from "@/lib/export";
 import { fmtTime } from "@/lib/youtube";
@@ -22,6 +22,22 @@ const SECTIONS = [
     icon: <><rect x="2" y="2" width="24" height="24" rx="6" className="fill-bad" /><path d="M10 10l8 8M18 10l-8 8" stroke="var(--color-paper)" strokeWidth="2.5" strokeLinecap="round" /></>,
   },
 ] as const;
+
+// Each list shows its top points; the rest open in place under "Show all".
+const SHOWN = 3;
+
+function PointItem({ p, videoId }: { p: FeedbackPoint; videoId: string }) {
+  return (
+    <li className="flex flex-col items-start gap-3 border-b border-line py-5 leading-normal break-words">
+      {p.text}
+      {p.t !== null && (
+        <Link href={`/watch/${videoId}?t=${Math.floor(p.t)}`} title="Watch this moment" className="pill-time">
+          <span aria-hidden className="text-xs">▶</span> {fmtTime(p.t)}
+        </Link>
+      )}
+    </li>
+  );
+}
 
 function verdict(score: number) {
   return score >= 80 ? "Nailed it" : score >= 50 ? "Mostly there" : "Worth another watch";
@@ -81,18 +97,18 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
                   <span className={`ml-auto tabular-nums ${text}`}>{fb[key].length}</span>
                 </h2>
                 {fb[key].length ? (
-                  <ul className="flex flex-col">
-                    {fb[key].map(toPoint).map((p, i) => (
-                      <li key={i} className="flex flex-col items-start gap-3 border-b border-line py-5 leading-normal break-words">
-                        {p.text}
-                        {p.t !== null && (
-                          <Link href={`/watch/${s.video_id}?t=${Math.floor(p.t)}`} title="Watch this moment" className="pill-time">
-                            <span aria-hidden className="text-xs">▶</span> {fmtTime(p.t)}
-                          </Link>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="flex flex-col">{fb[key].slice(0, SHOWN).map(toPoint).map((p, i) => <PointItem key={i} p={p} videoId={s.video_id} />)}</ul>
+                    {fb[key].length > SHOWN && (
+                      <details className="group">
+                        <summary className="cursor-pointer list-none py-4 text-sm font-semibold transition-colors hover:text-link [&::-webkit-details-marker]:hidden">
+                          <span className="group-open:hidden">Show all {fb[key].length} ↓</span>
+                          <span className="hidden group-open:inline">Show fewer ↑</span>
+                        </summary>
+                        <ul className="flex flex-col">{fb[key].slice(SHOWN).map(toPoint).map((p, i) => <PointItem key={i} p={p} videoId={s.video_id} />)}</ul>
+                      </details>
+                    )}
+                  </>
                 ) : (
                   <p className="py-5 text-muted">{empty}</p>
                 )}

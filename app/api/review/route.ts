@@ -6,6 +6,7 @@ import { saveSession } from "@/lib/db";
 import { fetchTitle, parseVideoId, timestampedTranscript } from "@/lib/youtube";
 
 const MAX_TRANSCRIPT_CHARS = 400_000; // ~100k tokens, a 6h+ video
+const MAX_POINTS = 10; // per list; the session page shows the top 3 and the rest behind "Show all"
 
 const Point = z.object({
   text: z.string(),
@@ -19,7 +20,7 @@ const Feedback = z.object({
   score: z.number().describe("0-100: how much of the video's key content the recap captured, penalising errors"),
   summary: z.string().describe("2-3 sentences of encouraging, specific feedback"),
   covered: z.array(Point).describe("Key ideas the learner got right"),
-  missed: z.array(Point).describe("Important ideas from the video the learner did not mention"),
+  missed: z.array(Point).describe(`The most important ideas the learner did not mention, at most ${MAX_POINTS}, biggest first`),
   incorrect: z.array(Point).describe("Statements in the recap that contradict the video, each with the correction"),
 });
 export type Feedback = z.infer<typeof Feedback>;
@@ -40,7 +41,9 @@ const SYSTEM =
   "You are a learning coach. A learner just watched a video and wrote, from memory, what they learned. " +
   "Compare their recap against the transcript. Judge understanding, not wording. Only list ideas that matter; " +
   "for each point, give the time of the transcript block it comes from so the learner can jump there; " +
-  "skip filler, sponsor reads and small talk. Score from 0 to 100. Write feedback directly to the learner (\"you\").";
+  "skip filler, sponsor reads and small talk. Score from 0 to 100. " +
+  `Keep every list short: at most ${MAX_POINTS} points, most important first; merge related details into one point, ` +
+  "and leave a list empty rather than padding it. Write feedback directly to the learner (\"you\").";
 
 // Groq's OpenAI-compatible API with strict JSON-schema output; the reply is still validated before it's saved.
 // ponytail: Groq's free tier caps tokens per minute, so long transcripts can be rejected; a paid tier lifts it.
@@ -96,8 +99,10 @@ export async function POST(req: Request) {
   else {
     const content = `<video_title>${title ?? "unknown"}</video_title>\n<transcript>\n${transcript}\n</transcript>\n\n<learner_recap>\n${recap}\n</learner_recap>`;
     try {
-      feedback = (process.env.GROQ_API_KEY ? await gradeWithGroq(content) : await gradeWithClaude(content)) ??
-        { error: "The AI couldn't grade this recap. Your notes are saved." };
+      const graded = process.env.GROQ_API_KEY ? await gradeWithGroq(content) : await gradeWithClaude(content);
+      feedback = graded
+        ? { ...graded, covered: graded.covered.slice(0, MAX_POINTS), missed: graded.missed.slice(0, MAX_POINTS), incorrect: graded.incorrect.slice(0, MAX_POINTS) }
+        : { error: "The AI couldn't grade this recap. Your notes are saved." };
     } catch (e) {
       console.error("grading", e instanceof Error ? e.message : e);
       feedback = { error: "Grading failed. Your notes are saved." };

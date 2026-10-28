@@ -6,10 +6,11 @@ import type { Note } from "@/lib/db";
 import { fetchSkipSegments, fmtTime } from "@/lib/youtube";
 import { Label, Spinner, Thumb } from "../../ui";
 
+// Methods only exist once the player is ready, so every call is optional.
 type YTPlayer = {
-  pauseVideo(): void;
-  playVideo(): void;
-  // Only present once the player is ready.
+  pauseVideo?(): void;
+  playVideo?(): void;
+  destroy?(): void;
   getCurrentTime?(): number;
   getDuration?(): number;
   seekTo?(seconds: number, allowSeekAhead: boolean): void;
@@ -56,9 +57,16 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const [error, setError] = useState("");
   const words = recap.trim() ? recap.trim().split(/\s+/).length : 0;
 
+  // YouTube replaces the element it's given with an iframe, so hand it a fresh child each time
+  // (React re-runs this effect in dev and on a new ?t=) and destroy the old player on cleanup.
   useEffect(() => {
+    const box = host.current!;
+    const el = box.appendChild(document.createElement("div"));
+    let live = true;
+    let yt: YTPlayer | null = null;
     const create = () => {
-      player.current = new window.YT.Player(host.current!, {
+      if (!live) return;
+      yt = player.current = new window.YT.Player(el, {
         videoId,
         width: "100%",
         height: "100%",
@@ -69,10 +77,18 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     if (window.YT?.Player) create();
     else {
       window.onYouTubeIframeAPIReady = create;
-      const s = document.createElement("script");
-      s.src = "https://www.youtube.com/iframe_api";
-      document.body.appendChild(s);
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const s = document.createElement("script");
+        s.src = "https://www.youtube.com/iframe_api";
+        document.body.appendChild(s);
+      }
     }
+    return () => {
+      live = false;
+      yt?.destroy?.();
+      if (player.current === yt) player.current = null;
+      box.replaceChildren();
+    };
   }, [videoId, start]);
 
   useEffect(() => {
@@ -131,11 +147,11 @@ export default function Player({ videoId, title, start, previousRecap, previousN
 
   function seek(t: number) {
     player.current?.seekTo?.(t, true);
-    player.current?.playVideo();
+    player.current?.playVideo?.();
   }
 
   function finish() {
-    player.current?.pauseVideo();
+    player.current?.pauseVideo?.();
     setDone(true);
   }
 
@@ -173,7 +189,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
 
         <div className="rise grid gap-6 [--d:100ms] lg:grid-cols-[1fr_340px]">
           <div className="relative aspect-video w-full overflow-hidden rounded-hero bg-panel">
-            <div ref={host} />
+            <div ref={host} className="absolute inset-0" />
             {/* Watch progress, in the sun color, along the bottom edge. */}
             <div aria-hidden className="absolute inset-x-0 bottom-0 h-1 bg-ink/20">
               <div className="h-full bg-sun transition-[width] duration-500 ease-linear" style={{ width: `${duration ? Math.min(100, (now / duration) * 100) : 0}%` }} />
