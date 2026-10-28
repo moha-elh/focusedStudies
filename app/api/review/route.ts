@@ -6,7 +6,7 @@ import { saveSession } from "@/lib/db";
 import { fetchTitle, parseVideoId, timestampedTranscript } from "@/lib/youtube";
 
 const MAX_TRANSCRIPT_CHARS = 400_000; // ~100k tokens, a 6h+ video
-const MAX_POINTS = 10; // per list; the session page shows the top 3 and the rest behind "Show all"
+const MAX_POINTS = 10; // per list; the session page shows the top 3 and the full list opens in a pop-up
 
 const Point = z.object({
   text: z.string(),

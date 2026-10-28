@@ -23,8 +23,8 @@ const SECTIONS = [
   },
 ] as const;
 
-// Each list shows its top points; the rest open in place under "Show all".
-const SHOWN = 3;
+// Each list shows its top points; "See all" opens the full list in a pop-up.
+const SHOWN = 3; // keep in step with row-span-5 / row-span-3 in the results grid
 
 function PointItem({ p, videoId }: { p: FeedbackPoint; videoId: string }) {
   return (
@@ -88,9 +88,11 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
             </div>
           </section>
 
-          <section className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+          {/* Subgrid: the three columns share row tracks, so row N is as tall as the longest entry N in any column.
+              Rows: heading, SHOWN points, "See all". */}
+          <section className="mt-12 grid gap-x-8 md:grid-cols-3">
             {SECTIONS.map(({ key, title, text, rule, empty, icon }) => (
-              <div key={key} className="reveal flex min-w-0 flex-col">
+              <div key={key} className="reveal row-span-5 mb-10 grid min-w-0 grid-rows-subgrid md:mb-0">
                 <h2 className={`flex items-center gap-3 border-b-2 pb-4 text-xl font-semibold ${rule}`}>
                   <svg width="24" height="24" viewBox="0 0 28 28" aria-hidden className="shrink-0">{icon}</svg>
                   {title}
@@ -98,19 +100,34 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
                 </h2>
                 {fb[key].length ? (
                   <>
-                    <ul className="flex flex-col">{fb[key].slice(0, SHOWN).map(toPoint).map((p, i) => <PointItem key={i} p={p} videoId={s.video_id} />)}</ul>
+                    <ul className="row-span-3 grid grid-rows-subgrid">{fb[key].slice(0, SHOWN).map(toPoint).map((p, i) => <PointItem key={i} p={p} videoId={s.video_id} />)}</ul>
                     {fb[key].length > SHOWN && (
-                      <details className="group">
-                        <summary className="cursor-pointer list-none py-4 text-sm font-semibold transition-colors hover:text-link [&::-webkit-details-marker]:hidden">
-                          <span className="group-open:hidden">Show all {fb[key].length} ↓</span>
-                          <span className="hidden group-open:inline">Show fewer ↑</span>
-                        </summary>
-                        <ul className="flex flex-col">{fb[key].slice(SHOWN).map(toPoint).map((p, i) => <PointItem key={i} p={p} videoId={s.video_id} />)}</ul>
-                      </details>
+                      <>
+                        <button popoverTarget={`all-${key}`} className="self-start justify-self-start py-4 text-sm font-semibold transition-colors hover:text-link">
+                          See all {fb[key].length} ↗
+                        </button>
+                        {/* Native popover: opens on top of the page, Esc or a click outside closes it. */}
+                        <div
+                          id={`all-${key}`}
+                          popover="auto"
+                          aria-label={title}
+                          className="m-auto max-h-[85vh] w-[min(720px,calc(100vw-32px))] overflow-y-auto rounded-hero bg-canvas p-6 text-ink shadow-[0_24px_64px_rgb(26_33_48/0.3)] backdrop:bg-ink/40 sm:p-10"
+                        >
+                          <div className={`flex items-center gap-3 border-b-2 pb-4 ${rule}`}>
+                            <svg width="24" height="24" viewBox="0 0 28 28" aria-hidden className="shrink-0">{icon}</svg>
+                            <h3 className="text-2xl font-semibold">{title}</h3>
+                            <span className={`tabular-nums text-xl font-semibold ${text}`}>{fb[key].length}</span>
+                            <button popoverTarget={`all-${key}`} popoverTargetAction="hide" aria-label="Close" className="ml-auto grid size-11 place-items-center rounded-full text-2xl transition-colors hover:bg-paper">
+                              ×
+                            </button>
+                          </div>
+                          <ul className="flex flex-col">{fb[key].map(toPoint).map((p, i) => <PointItem key={i} p={p} videoId={s.video_id} />)}</ul>
+                        </div>
+                      </>
                     )}
                   </>
                 ) : (
-                  <p className="py-5 text-muted">{empty}</p>
+                  <p className="row-span-3 py-5 text-muted">{empty}</p>
                 )}
               </div>
             ))}
