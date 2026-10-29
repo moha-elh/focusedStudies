@@ -14,6 +14,7 @@ type YTPlayer = {
   destroy?(): void;
   getCurrentTime?(): number;
   getDuration?(): number;
+  getPlayerState?(): number;
   seekTo?(seconds: number, allowSeekAhead: boolean): void;
 };
 
@@ -45,6 +46,9 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const player = useRef<YTPlayer>(null);
   const list = useRef<HTMLOListElement>(null);
   const added = useRef<number>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const resume = useRef(false);
   const router = useRouter();
   const draftKey = `draft:${videoId}`;
   const [done, setDone] = useState(false);
@@ -58,6 +62,11 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [full, setFull] = useState(false);
+  const [open, setOpen] = useState(false);
+  // Slide only after Alt+N, so entering fullscreen hides the panel instantly instead of animating it away.
+  const [slide, setSlide] = useState(false);
+  const [canFull, setCanFull] = useState(false);
   const words = recap.trim() ? recap.trim().split(/\s+/).length : 0;
 
   // YouTube replaces the element it's given with an iframe, so hand it a fresh child each time
@@ -73,7 +82,8 @@ export default function Player({ videoId, title, start, previousRecap, previousN
         videoId,
         width: "100%",
         height: "100%",
-        playerVars: { rel: 0, modestbranding: 1, playsinline: 1, start },
+        // YouTube's own fullscreen swallows our keys, so we fullscreen our wrapper and slide the notes in on N.
+        playerVars: { rel: 0, modestbranding: 1, playsinline: 1, start, fs: document.fullscreenEnabled ? 0 : 1 },
         events: { onStateChange: (e: { data: number }) => e.data === window.YT.PlayerState.ENDED && setDone(true) },
       });
     };
@@ -119,6 +129,75 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     return () => clearInterval(tick);
   }, [skips]);
 
+  // Fullscreen wraps the video and the (hidden until Alt+N) notes panel. A click on the video moves focus into the
+  // cross-origin iframe, where our keys can't reach, so we pull focus back.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    setCanFull(document.fullscreenEnabled);
+    const onChange = () => {
+      setFull(document.fullscreenElement === stage.current);
+      setOpen(false);
+      setSlide(false);
+    };
+    const onBlur = () =>
+      setTimeout(() => {
+        if (document.activeElement?.tagName === "IFRAME") stage.current?.focus({ preventScroll: true });
+      });
+    document.addEventListener("fullscreenchange", onChange);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Alt+N pauses and opens the note box, and closes it again (resuming), even mid-typing. F toggles fullscreen.
+  // Space/K and the arrows stand in for YouTube's own shortcuts, which lose focus to the page.
+  useEffect(() => {
+    if (done) return;
+    const onKey = (e: KeyboardEvent) => {
+      const playing = player.current?.getPlayerState?.() === 1;
+      // e.code, not e.key: on a Mac Option+N types a dead key instead of "n".
+      if (e.altKey && e.code === "KeyN" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        if (full ? open : document.activeElement === input.current) return closeNote();
+        if (playing) {
+          player.current?.pauseVideo?.();
+          resume.current = true;
+        }
+        if (full) {
+          setSlide(true);
+          setOpen(true);
+        }
+        else input.current?.focus({ preventScroll: true });
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const k = e.key.toLowerCase();
+      const t = player.current?.getCurrentTime?.() ?? 0;
+      if (k === "f" && document.fullscreenEnabled) {
+        e.preventDefault();
+        toggleFull();
+      } else if (k === "k" || (k === " " && !(e.target instanceof HTMLButtonElement))) {
+        e.preventDefault();
+        if (playing) player.current?.pauseVideo?.();
+        else player.current?.playVideo?.();
+      } else if (k === "arrowleft" || k === "arrowright") {
+        e.preventDefault();
+        player.current?.seekTo?.(Math.max(0, t + (k === "arrowleft" ? -5 : 5)), true);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [done, full, open]);
+
+  // The panel is inert until it opens, so focus it once it has.
+  useEffect(() => {
+    // preventScroll: otherwise the browser scrolls the still-offscreen panel into view, jolting the video and skipping the slide.
+    if (open) input.current?.focus({ preventScroll: true });
+  }, [open]);
+
   // An unsent recap and notes survive a refresh. If browser storage is unavailable, we just skip the draft.
   // Read after mount (not in useState) so the server-rendered HTML matches the first client render.
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -154,11 +233,27 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   function addNote(e: React.FormEvent) {
     e.preventDefault();
     const text = noteText.trim();
-    if (!text) return;
-    const t = Math.floor(player.current?.getCurrentTime?.() ?? now);
-    added.current = t;
-    setNotes((all) => [...all, { t, text }].sort((a, b) => a.t - b.t));
-    setNoteText("");
+    if (text) {
+      const t = Math.floor(player.current?.getCurrentTime?.() ?? now);
+      added.current = t;
+      setNotes((all) => [...all, { t, text }].sort((a, b) => a.t - b.t));
+      setNoteText("");
+    }
+    // Opened with Alt+N (or in fullscreen): Enter also closes and resumes. Typed in normally: keep the cursor for the next note.
+    if (full || resume.current) closeNote();
+  }
+
+  // Alt+N again or Enter: hide the panel and, if Alt+N paused the video, pick up where you left off.
+  function closeNote() {
+    setOpen(false);
+    stage.current?.focus({ preventScroll: true });
+    if (resume.current) player.current?.playVideo?.();
+    resume.current = false;
+  }
+
+  function toggleFull() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else stage.current?.requestFullscreen().catch(() => {});
   }
 
   function seek(t: number) {
@@ -197,14 +292,25 @@ export default function Player({ videoId, title, start, previousRecap, previousN
       <div className={done ? "hidden" : "flex flex-col gap-6"}>
         <div className="rise flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
           <h1 className="min-w-0 text-2xl font-semibold line-clamp-2 break-words sm:text-display">{title ?? "Focus session"}</h1>
-          <span className="inline-flex shrink-0 items-center gap-2.5 self-start rounded-full bg-paper px-4 py-2 text-sm lg:self-auto">
-            <span aria-hidden className="size-2 rounded-full bg-sun" />
-            {skipped ? `Skipped ${skipped} sponsor ${skipped === 1 ? "segment" : "segments"}` : skips.length ? "Focus mode, sponsors skipped" : "Focus mode"}
-          </span>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">
+            <span className="inline-flex items-center gap-2.5 rounded-full bg-paper px-4 py-2 text-sm">
+              <span aria-hidden className="size-2 rounded-full bg-sun" />
+              {skipped ? `Skipped ${skipped} sponsor ${skipped === 1 ? "segment" : "segments"}` : skips.length ? "Focus mode, sponsors skipped" : "Focus mode"}
+            </span>
+            {canFull && (
+              <button onClick={toggleFull} title="Full screen (F). Alt+N pauses and adds a note." className="rounded-full bg-paper px-4 py-2 text-sm transition-colors hover:bg-line">
+                Full screen
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="rise grid gap-6 [--d:100ms] lg:grid-cols-[1fr_340px]">
-          <div className="relative aspect-video w-full overflow-hidden rounded-hero bg-panel">
+        <div
+          ref={stage}
+          tabIndex={-1}
+          className={`rise outline-none [--d:100ms] ${full ? "relative h-dvh overflow-hidden bg-black" : "grid gap-6 lg:grid-cols-[1fr_340px]"}`}
+        >
+          <div className={`relative w-full overflow-hidden ${full ? "h-full" : "aspect-video rounded-hero bg-panel"}`}>
             <div ref={host} className="absolute inset-0" />
             {/* Watch progress, in the sun color, along the bottom edge. */}
             <div aria-hidden className="absolute inset-x-0 bottom-0 h-1 bg-ink/20">
@@ -212,8 +318,16 @@ export default function Player({ videoId, title, start, previousRecap, previousN
             </div>
           </div>
 
-          {/* Fixed height: on desktop h-0 + min-h-full takes the video's height without ever stretching the row. */}
-          <section className="flex h-80 flex-col overflow-hidden rounded-hero bg-paper lg:h-0 lg:min-h-full">
+          {/* Fixed height: on desktop h-0 + min-h-full takes the video's height without ever stretching the row.
+              In fullscreen it sits off the right edge and slides in on N. */}
+          <section
+            inert={full && !open}
+            className={`flex flex-col overflow-hidden rounded-hero bg-paper ${
+              full
+                ? `absolute inset-y-4 right-4 w-[min(340px,calc(100%-2rem))] ${slide ? "transition-transform duration-300 ease-out" : ""} ${open ? "" : "translate-x-[calc(100%+2rem)]"}`
+                : "h-80 lg:h-0 lg:min-h-full"
+            }`}
+          >
             <div className="flex items-baseline justify-between border-b border-line px-5 pt-5 pb-4">
               <h2 className="text-xl font-semibold">Notes</h2>
               <span className="text-sm text-muted">{notes.length ? `${notes.length} saved` : "Stamped with the video time"}</span>
@@ -244,10 +358,11 @@ export default function Player({ videoId, title, start, previousRecap, previousN
               <span className="w-12 shrink-0 text-center text-sm font-semibold text-muted tabular-nums">{fmtTime(now)}</span>
               <input
                 value={noteText}
+                ref={input}
                 onChange={(e) => setNoteText(e.target.value)}
                 maxLength={1000}
                 aria-label="New note"
-                placeholder="Add a note…"
+                placeholder="Add a note… (Alt+N)"
                 className="min-h-11 min-w-0 flex-1 rounded-full border border-line bg-white px-4 outline-none placeholder:text-muted focus:border-ink"
               />
               <button disabled={!noteText.trim()} className="btn min-h-11 px-5 disabled:bg-line disabled:text-muted disabled:opacity-100">
