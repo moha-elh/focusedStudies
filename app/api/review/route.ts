@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { YoutubeTranscript } from "youtube-transcript";
 import { z } from "zod";
-import { saveSession } from "@/lib/db";
+import { Notes, saveSession } from "@/lib/db";
 import { fetchTitle, parseVideoId, timestampedTranscript } from "@/lib/youtube";
 
 const MAX_TRANSCRIPT_CHARS = 400_000; // ~100k tokens, a 6h+ video
@@ -25,8 +25,6 @@ const Feedback = z.object({
 });
 export type Feedback = z.infer<typeof Feedback>;
 export type FeedbackPoint = z.infer<typeof Point>;
-
-const Notes = z.array(z.object({ t: z.number().min(0), text: z.string().trim().min(1).max(1000) })).max(300);
 
 // Lets you try the UI without an API key; clearly labelled so it's never mistaken for real grading.
 const DEMO: Feedback = {

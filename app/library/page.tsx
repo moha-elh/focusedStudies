@@ -48,14 +48,17 @@ export default async function Library() {
             const score = scoreOf(s.feedback);
             return (
               <li key={s.id} className="rise border-b border-line" style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}>
+                {/* No recap yet means there's nothing to review, so go straight back to the video. */}
                 <Link
-                  href={`/library/${s.id}`}
+                  href={s.recap ? `/library/${s.id}` : `/watch/${s.video_id}`}
                   className="group grid grid-cols-[auto_1fr_auto] items-center gap-4 px-0 py-5 transition-colors hover:bg-paper sm:grid-cols-[auto_1fr_auto_auto] sm:gap-8 sm:px-5"
                 >
                   <Thumb videoId={s.video_id} className="w-28 transition-transform duration-300 group-hover:scale-[1.03] sm:w-52" />
                   <div className="flex min-w-0 flex-col gap-1.5">
                     <p className="line-clamp-2 font-semibold break-words sm:text-xl">{s.title ?? s.video_id}</p>
-                    <p className="hidden truncate text-muted sm:block">{s.recap}</p>
+                    <p className="hidden truncate text-muted sm:block">
+                      {s.recap || `Still watching · ${s.notes?.length ?? 0} ${s.notes?.length === 1 ? "note" : "notes"}`}
+                    </p>
                   </div>
                   <span className="hidden text-sm whitespace-nowrap text-muted sm:block">
                     {new Date(s.updated_at ?? s.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}

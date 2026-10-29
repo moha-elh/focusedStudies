@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Note } from "@/lib/db";
 import { fetchSkipSegments, fmtTime } from "@/lib/youtube";
 import { Label, Spinner, Thumb } from "../../ui";
+import { saveNotes } from "./actions";
 
 // Methods only exist once the player is ready, so every call is optional.
 type YTPlayer = {
@@ -42,6 +43,8 @@ type Props = {
 export default function Player({ videoId, title, start, previousRecap, previousNotes, demo }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const player = useRef<YTPlayer>(null);
+  const list = useRef<HTMLOListElement>(null);
+  const added = useRef<number>(null);
   const router = useRouter();
   const draftKey = `draft:${videoId}`;
   const [done, setDone] = useState(false);
@@ -136,11 +139,24 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     } catch {}
   }, [draftKey, draftLoaded, recap, notes]);
 
+  // Opening a video adds it to the library, and every note is saved as you go (the draft above is the offline backup).
+  useEffect(() => {
+    if (draftLoaded) saveNotes(videoId, title, notes).catch(() => {});
+  }, [videoId, title, draftLoaded, notes]);
+
+  // Keep a newly added note in view inside the fixed-height list.
+  useEffect(() => {
+    if (added.current === null) return;
+    list.current?.querySelector(`[data-t="${added.current}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    added.current = null;
+  }, [notes]);
+
   function addNote(e: React.FormEvent) {
     e.preventDefault();
     const text = noteText.trim();
     if (!text) return;
     const t = Math.floor(player.current?.getCurrentTime?.() ?? now);
+    added.current = t;
     setNotes((all) => [...all, { t, text }].sort((a, b) => a.t - b.t));
     setNoteText("");
   }
@@ -196,19 +212,20 @@ export default function Player({ videoId, title, start, previousRecap, previousN
             </div>
           </div>
 
-          <section className="flex max-h-[28rem] min-h-64 flex-col overflow-hidden rounded-hero bg-paper lg:max-h-none">
+          {/* Fixed height: on desktop h-0 + min-h-full takes the video's height without ever stretching the row. */}
+          <section className="flex h-80 flex-col overflow-hidden rounded-hero bg-paper lg:h-0 lg:min-h-full">
             <div className="flex items-baseline justify-between border-b border-line px-5 pt-5 pb-4">
               <h2 className="text-xl font-semibold">Notes</h2>
               <span className="text-sm text-muted">{notes.length ? `${notes.length} saved` : "Stamped with the video time"}</span>
             </div>
-            <ol className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+            <ol ref={list} className="notes-fade flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
               {notes.length === 0 && (
                 <li className="px-2 py-2 leading-normal text-muted">
                   Jot down anything worth keeping. Each note remembers its moment, so you can jump back to it later.
                 </li>
               )}
               {notes.map((n, i) => (
-                <li key={`${n.t}-${i}`} className="group flex items-start gap-3 rounded-media p-2 transition-colors hover:bg-canvas">
+                <li key={`${n.t}-${i}`} data-t={n.t} className="group flex items-start gap-3 rounded-media p-2 transition-colors hover:bg-canvas">
                   <button onClick={() => seek(n.t)} title="Jump to this moment" className="pill-time shrink-0">
                     {fmtTime(n.t)}
                   </button>

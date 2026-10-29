@@ -112,8 +112,8 @@ function SignedIn({ sessions }: { sessions: Session[] }) {
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Link href={`/watch/${last.video_id}`} className="btn">Rewatch and add notes ↗</Link>
-            <Link href={`/library/${last.id}`} className="btn-outline">See feedback</Link>
+            <Link href={`/watch/${last.video_id}`} className="btn">{last.recap ? "Rewatch and add notes ↗" : "Continue watching ↗"}</Link>
+            {last.recap && <Link href={`/library/${last.id}`} className="btn-outline">See feedback</Link>}
           </div>
         </div>
       </section>
@@ -141,7 +141,7 @@ function SignedIn({ sessions }: { sessions: Session[] }) {
           </div>
 
           <ul className="grid min-w-0 flex-[2_1_600px] grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-x-8 gap-y-2">
-            {sessions.slice(0, 4).map((s) => {
+            {sessions.filter((s) => s.recap).slice(0, 4).map((s) => {
               const score = scoreOf(s.feedback);
               return (
                 <li key={s.id} className="reveal border-t border-line pt-5 pb-4">

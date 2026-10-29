@@ -23,7 +23,7 @@ Paste a YouTube link, watch it with no distractions, then explain what you learn
 4. Supabase (accounts + database), needed to sign in and save:
    - Create a project, then run `supabase/schema.sql` in its SQL Editor.
    - Put the Project URL (bare, `https://<ref>.supabase.co`), the publishable key and the secret key in `.env.local` (see `.env.example`).
-   - Authentication → URL Configuration: Site URL `http://localhost:3000`, and add `http://localhost:3000/auth/callback` to Redirect URLs.
+   - Authentication → URL Configuration: Site URL `http://localhost:3000`, and add `http://localhost:3000/**` to Redirect URLs (the `/**` also matches the `?next=` part; without it Supabase falls back to the Site URL).
    - Sign-in providers (Authentication → Sign In / Providers), both free. Each asks for an authorized callback URL: use the one Supabase shows, `https://<ref>.supabase.co/auth/v1/callback`.
      - GitHub: github.com/settings/developers → New OAuth App (homepage `http://localhost:3000`), then paste the Client ID and a new client secret into Supabase.
      - Google: console.cloud.google.com → APIs & Services → Credentials → Create OAuth client ID (Web application; set up the consent screen when asked), then paste the Client ID and secret into Supabase.
@@ -35,7 +35,7 @@ Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimenta
 ### Deploy (Vercel)
 1. Push to GitHub, then on vercel.com: Add New → Project → import this repo. Framework: Next.js (detected); no build settings to change.
 2. Environment variables (Project → Settings → Environment Variables): `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`. The secret key is not needed in production.
-3. Supabase → Authentication → URL Configuration: set Site URL to your Vercel URL (e.g. `https://focuslearn.vercel.app`) and add `https://<your-url>/auth/callback` to Redirect URLs. Keep the localhost entries for local dev.
+3. Supabase → Authentication → URL Configuration: set Site URL to your Vercel URL (e.g. `https://focuslearn.vercel.app`) and add `https://<your-url>/**` to Redirect URLs. Keep the localhost entry for local dev.
 4. Run `supabase/schema.sql` again in the SQL Editor (adds the `feedback` table). Feedback from the in-app button lands in Table Editor → `feedback`.
 5. Google/GitHub sign-in needs nothing more for production: the providers call back to Supabase's URL, which doesn't change.
 6. After deploying, set `FOCUSLEARN` in `extension/shared.js` to your Vercel URL and reload the extension.

@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { supabase } from "./supabase";
 
 export type Note = { t: number; text: string };
+export const Notes = z.array(z.object({ t: z.number().min(0), text: z.string().trim().min(1).max(1000) })).max(300);
 
 export type Session = {
   id: string;
@@ -14,7 +16,8 @@ export type Session = {
   updated_at?: string | null;
 };
 
-type NewSession = Pick<Session, "video_id" | "title" | "recap" | "feedback" | "notes">;
+// recap/feedback are left out while watching (notes only); a new row then starts with no recap yet.
+type NewSession = Pick<Session, "video_id" | "title" | "notes"> & Partial<Pick<Session, "recap" | "feedback">>;
 
 // Every query runs as the signed-in user; row-level security (supabase/schema.sql) scopes it to their sessions.
 const COLUMNS = "id, video_id, title, recap, feedback, notes, created_at, updated_at";
@@ -46,6 +49,6 @@ export async function saveSession(s: NewSession): Promise<Session> {
   const now = new Date().toISOString();
   const row: Session = prev
     ? { ...prev, ...s, title: s.title ?? prev.title, updated_at: now }
-    : { ...s, id: randomUUID(), created_at: now };
+    : { recap: "", feedback: null, ...s, id: randomUUID(), created_at: now };
   return check(await (await supabase()).from("sessions").upsert(row, { onConflict: "user_id,video_id" }).select(COLUMNS).single())!;
 }
