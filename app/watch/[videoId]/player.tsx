@@ -199,7 +199,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
           setSlide(true);
           setOpen(true);
         }
-        else input.current?.focus({ preventScroll: true });
+        else focusInput();
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -223,7 +223,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   // The panel is inert until it opens, so focus it once it has.
   useEffect(() => {
     // preventScroll: otherwise the browser scrolls the still-offscreen panel into view, jolting the video and skipping the slide.
-    if (open) input.current?.focus({ preventScroll: true });
+    if (open) focusInput();
   }, [open]);
 
   // An unsent recap and notes survive a refresh. If browser storage is unavailable, we just skip the draft.
@@ -269,6 +269,13 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     }
     // Opened with Alt+N (or in fullscreen): Enter also closes and resumes. Typed in normally: keep the cursor for the next note.
     if (full || resume.current) closeNote();
+  }
+
+  // Back to a half-written note: the caret goes after the text, not before it (where focus() can leave it).
+  function focusInput() {
+    const el = input.current;
+    el?.focus({ preventScroll: true });
+    el?.setSelectionRange(el.value.length, el.value.length);
   }
 
   // Alt+N again or Enter: hide the panel and, if Alt+N paused the video, pick up where you left off.
