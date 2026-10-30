@@ -49,6 +49,8 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const stage = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const resume = useRef(false);
+  const idleTimer = useRef<ReturnType<typeof setInterval>>(undefined);
+  const mouse = useRef({ x: -1, y: -1 });
   const router = useRouter();
   const draftKey = `draft:${videoId}`;
   const [done, setDone] = useState(false);
@@ -66,6 +68,8 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const [open, setOpen] = useState(false);
   // Slide only after Alt+N, so entering fullscreen hides the panel instantly instead of animating it away.
   const [slide, setSlide] = useState(false);
+  const [idle, setIdle] = useState(false);
+  const [controls, setControls] = useState(false);
   const [canFull, setCanFull] = useState(false);
   const words = recap.trim() ? recap.trim().split(/\s+/).length : 0;
 
@@ -138,6 +142,12 @@ export default function Player({ videoId, title, start, previousRecap, previousN
       setFull(document.fullscreenElement === stage.current);
       setOpen(false);
       setSlide(false);
+      setControls(false);
+      if (document.fullscreenElement) wake();
+      else {
+        clearInterval(idleTimer.current);
+        setIdle(false);
+      }
     };
     const onBlur = () =>
       setTimeout(() => {
@@ -181,8 +191,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
         toggleFull();
       } else if (k === "k" || (k === " " && !(e.target instanceof HTMLButtonElement))) {
         e.preventDefault();
-        if (playing) player.current?.pauseVideo?.();
-        else player.current?.playVideo?.();
+        togglePlay();
       } else if (k === "arrowleft" || k === "arrowright") {
         e.preventDefault();
         player.current?.seekTo?.(Math.max(0, t + (k === "arrowleft" ? -5 : 5)), true);
@@ -251,6 +260,33 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     resume.current = false;
   }
 
+  function togglePlay() {
+    if (player.current?.getPlayerState?.() === 1) player.current.pauseVideo?.();
+    else player.current?.playVideo?.();
+  }
+
+  // Chrome never applies a cursor change from inside the cross-origin YouTube iframe (tested: YouTube's own
+  // cursor:none leaves the Windows arrow showing), so only our page can hide it, and only from an element already
+  // under the mouse. In fullscreen a cover sits over the picture (not YouTube's control strip), sees every move,
+  // and hides the cursor after 3s still. The trade-off: YouTube's bar shows only when the mouse reaches the strip.
+  function onCoverMove(e: React.MouseEvent) {
+    // Browsers also fire mousemove when the cursor style flips, with the mouse standing still; only a new position counts.
+    if (e.clientX === mouse.current.x && e.clientY === mouse.current.y) return;
+    mouse.current = { x: e.clientX, y: e.clientY };
+    setControls(false);
+    wake();
+  }
+
+  function wake() {
+    setIdle(false);
+    clearInterval(idleTimer.current);
+    idleTimer.current = setInterval(() => {
+      if (player.current?.getPlayerState?.() !== 1) return;
+      setIdle(true);
+      clearInterval(idleTimer.current);
+    }, 3000);
+  }
+
   function toggleFull() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else stage.current?.requestFullscreen().catch(() => {});
@@ -312,6 +348,24 @@ export default function Player({ videoId, title, start, previousRecap, previousN
         >
           <div className={`relative w-full overflow-hidden ${full ? "h-full" : "aspect-video rounded-hero bg-panel"}`}>
             <div ref={host} className="absolute inset-0" />
+            {full &&
+              // Two tiles over the picture. Only the right one gives way (to the top half) while the mouse is in the
+              // control strip, since YouTube's settings menu opens up from the bottom right.
+              // Click plays/pauses and double-click leaves fullscreen, like on YouTube.
+              [
+                ["l", "left-0 right-100 bottom-32"],
+                ["r", `right-0 w-100 ${controls ? "bottom-1/2" : "bottom-32"}`],
+              ].map(([key, pos]) => (
+                <div
+                  key={key}
+                  aria-hidden
+                  onMouseMove={onCoverMove}
+                  onMouseLeave={(e) => e.clientY >= e.currentTarget.getBoundingClientRect().bottom - 1 && setControls(true)}
+                  onClick={togglePlay}
+                  onDoubleClick={toggleFull}
+                  className={`absolute top-0 ${pos} ${idle ? "cursor-none" : ""}`}
+                />
+              ))}
             {/* Watch progress, in the sun color, along the bottom edge. */}
             <div aria-hidden className="absolute inset-x-0 bottom-0 h-1 bg-ink/20">
               <div className="h-full bg-sun transition-[width] duration-500 ease-linear" style={{ width: `${duration ? Math.min(100, (now / duration) * 100) : 0}%` }} />
