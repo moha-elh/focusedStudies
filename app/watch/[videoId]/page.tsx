@@ -8,7 +8,9 @@ type Props = { params: Promise<{ videoId: string }>; searchParams: Promise<{ t?:
 export default async function WatchPage({ params, searchParams }: Props) {
   const videoId = parseVideoId((await params).videoId);
   if (!videoId) notFound();
-  const start = Math.max(0, Math.floor(Number((await searchParams).t) || 0));
+  const { t } = await searchParams;
+  // No ?t= means "pick up where I left off", which only the browser knows (see player.tsx).
+  const start = t === undefined ? null : Math.max(0, Math.floor(Number(t) || 0));
   const existing = await getSessionByVideo(videoId);
   // Only ask YouTube for the title the first time; after that it's saved with the session.
   const title = existing?.title ?? (await fetchTitle(videoId).catch(() => null));

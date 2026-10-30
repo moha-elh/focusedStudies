@@ -35,7 +35,7 @@ const PROMPTS = [
 type Props = {
   videoId: string;
   title: string | null;
-  start: number;
+  start: number | null;
   previousRecap: string;
   previousNotes: Note[];
   demo: boolean;
@@ -53,11 +53,12 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const mouse = useRef({ x: -1, y: -1 });
   const router = useRouter();
   const draftKey = `draft:${videoId}`;
+  const posKey = `pos:${videoId}`;
   const [done, setDone] = useState(false);
   const [recap, setRecap] = useState(previousRecap ? previousRecap + "\n\n" : "");
   const [notes, setNotes] = useState<Note[]>(previousNotes);
   const [noteText, setNoteText] = useState("");
-  const [now, setNow] = useState(start);
+  const [now, setNow] = useState(start ?? 0);
   const [duration, setDuration] = useState(0);
   const [skips, setSkips] = useState<[number, number][]>([]);
   const [skipped, setSkipped] = useState(0);
@@ -82,13 +83,26 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     let yt: YTPlayer | null = null;
     const create = () => {
       if (!live) return;
+      let from = start ?? 0;
+      try {
+        from = start ?? (Number(localStorage.getItem(`pos:${videoId}`)) || 0);
+      } catch {}
       yt = player.current = new window.YT.Player(el, {
         videoId,
         width: "100%",
         height: "100%",
         // YouTube's own fullscreen swallows our keys, so we fullscreen our wrapper and slide the notes in on N.
-        playerVars: { rel: 0, modestbranding: 1, playsinline: 1, start, fs: document.fullscreenEnabled ? 0 : 1 },
-        events: { onStateChange: (e: { data: number }) => e.data === window.YT.PlayerState.ENDED && setDone(true) },
+        playerVars: { rel: 0, modestbranding: 1, playsinline: 1, start: from, fs: document.fullscreenEnabled ? 0 : 1 },
+        events: {
+          onStateChange: (e: { data: number }) => {
+            if (e.data !== window.YT.PlayerState.ENDED) return;
+            setDone(true);
+            // Finished: next time starts from the top.
+            try {
+              localStorage.removeItem(`pos:${videoId}`);
+            } catch {}
+          },
+        },
       });
     };
     if (window.YT?.Player) create();
@@ -128,10 +142,15 @@ export default function Player({ videoId, title, start, previousRecap, previousN
         setSkipped((n) => n + 1);
       }
       setNow(seg ? seg[1] : t);
+      // Remember the spot while it plays, so coming back later resumes here.
+      if (player.current?.getPlayerState?.() === 1)
+        try {
+          localStorage.setItem(posKey, String(Math.floor(t)));
+        } catch {}
       setDuration(player.current?.getDuration?.() ?? 0);
     }, 500);
     return () => clearInterval(tick);
-  }, [skips]);
+  }, [skips, posKey]);
 
   // Fullscreen wraps the video and the (hidden until Alt+N) notes panel. A click on the video moves focus into the
   // cross-origin iframe, where our keys can't reach, so we pull focus back.
