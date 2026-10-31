@@ -15,6 +15,12 @@ type YTPlayer = {
   getCurrentTime?(): number;
   getDuration?(): number;
   getPlayerState?(): number;
+  getVolume?(): number;
+  setVolume?(volume: number): void;
+  isMuted?(): boolean;
+  unMute?(): void;
+  getOption?(module: string, option: string): unknown;
+  setOption?(module: string, option: string, value: object): void;
   seekTo?(seconds: number, allowSeekAhead: boolean): void;
 };
 
@@ -49,8 +55,13 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const stage = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const resume = useRef(false);
-  const idleTimer = useRef<ReturnType<typeof setInterval>>(undefined);
-  const mouse = useRef({ x: -1, y: -1 });
+  const captions = useRef(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const scroller = useRef<HTMLDivElement>(null);
+  const scrollTop = useRef(0);
+  const recenter = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const volume = useRef({ v: 100, at: 0 });
+  const hudTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const router = useRouter();
   const draftKey = `draft:${videoId}`;
   const posKey = `pos:${videoId}`;
@@ -69,9 +80,8 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const [open, setOpen] = useState(false);
   // Slide only after Alt+N, so entering fullscreen hides the panel instantly instead of animating it away.
   const [slide, setSlide] = useState(false);
-  const [idle, setIdle] = useState(false);
-  const [controls, setControls] = useState(false);
   const [canFull, setCanFull] = useState(false);
+  const [hud, setHud] = useState<number | null>(null);
   const words = recap.trim() ? recap.trim().split(/\s+/).length : 0;
 
   // YouTube replaces the element it's given with an iframe, so hand it a fresh child each time
@@ -161,12 +171,6 @@ export default function Player({ videoId, title, start, previousRecap, previousN
       setFull(document.fullscreenElement === stage.current);
       setOpen(false);
       setSlide(false);
-      setControls(false);
-      if (document.fullscreenElement) wake();
-      else {
-        clearInterval(idleTimer.current);
-        setIdle(false);
-      }
     };
     const onBlur = () =>
       setTimeout(() => {
@@ -181,8 +185,46 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Hide the cursor after 3s still, like on youtube.com. YouTube's embed never does (its control layer keeps
+  // cursor:auto), and our page can't style inside its iframe or put anything over it without blocking its buttons.
+  // So we use pointer lock, which hides the cursor and which Chrome grants without a click while in fullscreen.
+  // The first move, click or scroll releases it, and the cursor reappears where it was.
+  // ponytail: we can't see the mouse moving over YouTube's iframe, so "still" means 3s since it was last released
+  // or YouTube was last clicked; a mouse kept moving for 3s+ blinks out for one frame.
+  useEffect(() => {
+    if (!full) return;
+    const arm = () => {
+      clearTimeout(hideTimer.current);
+      hideTimer.current = setTimeout(() => {
+        // Not while paused or with the note panel open (it's inert while closed).
+        if (player.current?.getPlayerState?.() !== 1 || !input.current?.closest("[inert]")) return arm();
+        stage.current?.requestPointerLock?.()?.catch?.(() => {});
+      }, 3000);
+    };
+    const onActivity = (e: Event) => {
+      if (!document.pointerLockElement) return arm();
+      // Scrolling with the cursor hidden changes volume and keeps it hidden; moving or clicking shows it.
+      if (e instanceof WheelEvent) changeVolume(-e.deltaY / 20);
+      else document.exitPointerLock();
+    };
+    const onLockChange = () => !document.pointerLockElement && arm();
+    const events = ["mousemove", "mousedown", "wheel"] as const;
+    events.forEach((t) => document.addEventListener(t, onActivity, true));
+    document.addEventListener("pointerlockchange", onLockChange);
+    window.addEventListener("blur", arm);
+    arm();
+    centerScroll();
+    return () => {
+      clearTimeout(hideTimer.current);
+      events.forEach((t) => document.removeEventListener(t, onActivity, true));
+      document.removeEventListener("pointerlockchange", onLockChange);
+      window.removeEventListener("blur", arm);
+      if (document.pointerLockElement) document.exitPointerLock();
+    };
+  }, [full]);
+
   // Alt+N pauses and opens the note box, and closes it again (resuming), even mid-typing. F toggles fullscreen.
-  // Space/K and the arrows stand in for YouTube's own shortcuts, which lose focus to the page.
+  // Space/K, C (captions), the arrows (←/→ seek, ↑/↓ volume) stand in for YouTube's own shortcuts, which lose focus to the page.
   useEffect(() => {
     if (done) return;
     const onKey = (e: KeyboardEvent) => {
@@ -214,6 +256,12 @@ export default function Player({ videoId, title, start, previousRecap, previousN
       } else if (k === "arrowleft" || k === "arrowright") {
         e.preventDefault();
         player.current?.seekTo?.(Math.max(0, t + (k === "arrowleft" ? -5 : 5)), true);
+      } else if (k === "c") {
+        e.preventDefault();
+        toggleCaptions();
+      } else if (k === "arrowup" || k === "arrowdown") {
+        e.preventDefault();
+        changeVolume(k === "arrowup" ? 5 : -5);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -291,26 +339,49 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     else player.current?.playVideo?.();
   }
 
-  // Chrome never applies a cursor change from inside the cross-origin YouTube iframe (tested: YouTube's own
-  // cursor:none leaves the Windows arrow showing), so only our page can hide it, and only from an element already
-  // under the mouse. In fullscreen a cover sits over the picture (not YouTube's control strip), sees every move,
-  // and hides the cursor after 3s still. The trade-off: YouTube's bar shows only when the mouse reaches the strip.
-  function onCoverMove(e: React.MouseEvent) {
-    // Browsers also fire mousemove when the cursor style flips, with the mouse standing still; only a new position counts.
-    if (e.clientX === mouse.current.x && e.clientY === mouse.current.y) return;
-    mouse.current = { x: e.clientX, y: e.clientY };
-    setControls(false);
-    wake();
+  // The player doesn't report whether captions are on (getOption lags), so C tracks it itself. If YouTube started
+  // with them on, the first press turns them "on" again and the second turns them off.
+  function toggleCaptions() {
+    const p = player.current;
+    captions.current = !captions.current;
+    const list = p?.getOption?.("captions", "tracklist") as { languageCode: string }[] | undefined;
+    p?.setOption?.("captions", "track", captions.current ? { languageCode: list?.[0]?.languageCode ?? "en" } : {});
   }
 
-  function wake() {
-    setIdle(false);
-    clearInterval(idleTimer.current);
-    idleTimer.current = setInterval(() => {
-      if (player.current?.getPlayerState?.() !== 1) return;
-      setIdle(true);
-      clearInterval(idleTimer.current);
-    }, 3000);
+  // The wheel over YouTube's player goes to YouTube, which can't scroll, so the browser hands the scroll on to the
+  // nearest scrollable box around it. In fullscreen that's a box around the player with room above and below
+  // (the player is sticky, so it never moves): we turn how far it scrolled into volume and recenter it once still.
+  function onScroll(e: React.UIEvent<HTMLDivElement>) {
+    const d = e.currentTarget.scrollTop - scrollTop.current;
+    scrollTop.current = e.currentTarget.scrollTop;
+    // Leaving fullscreen removes the room, which snaps the box back to 0: not a scroll.
+    if (!d || !full) return;
+    changeVolume(-d / 20);
+    clearTimeout(recenter.current);
+    recenter.current = setTimeout(centerScroll, 300);
+  }
+
+  function centerScroll() {
+    const el = scroller.current;
+    if (!el) return;
+    el.scrollTop = (el.scrollHeight - el.clientHeight) / 2;
+    scrollTop.current = el.scrollTop;
+  }
+
+  // Up/down keys and the mouse wheel in fullscreen. YouTube's getVolume lags behind setVolume, so rapid steps build on our own running value,
+  // re-read from the player after a second's pause (in case its slider was used).
+  function changeVolume(d: number) {
+    const p = player.current;
+    if (!p?.setVolume) return;
+    const s = volume.current;
+    if (Date.now() - s.at > 1000) s.v = p.isMuted?.() ? 0 : (p.getVolume?.() ?? 100);
+    s.v = Math.max(0, Math.min(100, s.v + d));
+    s.at = Date.now();
+    p.setVolume(Math.round(s.v));
+    if (s.v > 0) p.unMute?.();
+    setHud(Math.round(s.v));
+    clearTimeout(hudTimer.current);
+    hudTimer.current = setTimeout(() => setHud(null), 1000);
   }
 
   function toggleFull() {
@@ -360,7 +431,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
               {skipped ? `Skipped ${skipped} sponsor ${skipped === 1 ? "segment" : "segments"}` : skips.length ? "Focus mode, sponsors skipped" : "Focus mode"}
             </span>
             {canFull && (
-              <button onClick={toggleFull} title="Full screen (F). Alt+N pauses and adds a note." className="rounded-full bg-paper px-4 py-2 text-sm transition-colors hover:bg-line">
+              <button onClick={toggleFull} title="Full screen (F). Alt+N pauses and adds a note, C toggles captions, ↑/↓ or the mouse wheel change volume." className="rounded-full bg-paper px-4 py-2 text-sm transition-colors hover:bg-line">
                 Full screen
               </button>
             )}
@@ -373,25 +444,15 @@ export default function Player({ videoId, title, start, previousRecap, previousN
           className={`rise outline-none [--d:100ms] ${full ? "relative h-dvh overflow-hidden bg-black" : "grid gap-6 lg:grid-cols-[1fr_340px]"}`}
         >
           <div className={`relative w-full overflow-hidden ${full ? "h-full" : "aspect-video rounded-hero bg-panel"}`}>
-            <div ref={host} className="absolute inset-0" />
-            {full &&
-              // Two tiles over the picture. Only the right one gives way (to the top half) while the mouse is in the
-              // control strip, since YouTube's settings menu opens up from the bottom right.
-              // Click plays/pauses and double-click leaves fullscreen, like on YouTube.
-              [
-                ["l", "left-0 right-100 bottom-32"],
-                ["r", `right-0 w-100 ${controls ? "bottom-1/2" : "bottom-32"}`],
-              ].map(([key, pos]) => (
-                <div
-                  key={key}
-                  aria-hidden
-                  onMouseMove={onCoverMove}
-                  onMouseLeave={(e) => e.clientY >= e.currentTarget.getBoundingClientRect().bottom - 1 && setControls(true)}
-                  onClick={togglePlay}
-                  onDoubleClick={toggleFull}
-                  className={`absolute top-0 ${pos} ${idle ? "cursor-none" : ""}`}
-                />
-              ))}
+            <div ref={scroller} onScroll={onScroll} className={`absolute inset-0 ${full ? "overflow-y-scroll [scrollbar-width:none]" : ""}`}>
+              <div ref={host} className={full ? "sticky top-0 h-full" : "absolute inset-0"} />
+              {full && <div aria-hidden className="h-[200%]" />}
+            </div>
+            {hud !== null && (
+              <span role="status" className="pointer-events-none absolute top-6 left-1/2 -translate-x-1/2 rounded-full bg-paper px-4 py-2 text-sm tabular-nums">
+                Volume {hud}%
+              </span>
+            )}
             {/* Watch progress, in the sun color, along the bottom edge. */}
             <div aria-hidden className="absolute inset-x-0 bottom-0 h-1 bg-ink/20">
               <div className="h-full bg-sun transition-[width] duration-500 ease-linear" style={{ width: `${duration ? Math.min(100, (now / duration) * 100) : 0}%` }} />
