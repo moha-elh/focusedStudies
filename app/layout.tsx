@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import Link from "next/link";
@@ -118,6 +119,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             FocusLearn
           </p>
         </footer>
+        <Analytics />
       </body>
     </html>
   );
