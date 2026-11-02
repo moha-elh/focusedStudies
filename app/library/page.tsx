@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listSessions } from "@/lib/db";
 import { avgScore, Label, scoreColor, scoreOf, Thumb } from "../ui";
+import RemoveButton from "./remove-button";
 
 export default async function Library() {
   const sessions = await listSessions();
@@ -47,11 +48,11 @@ export default async function Library() {
           {sessions.map((s, i) => {
             const score = scoreOf(s.feedback);
             return (
-              <li key={s.id} className="rise border-b border-line" style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}>
+              <li key={s.id} className="rise group/row flex items-center border-b border-line" style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}>
                 {/* No recap yet means there's nothing to review, so go straight back to the video. */}
                 <Link
                   href={s.recap ? `/library/${s.id}` : `/watch/${s.video_id}`}
-                  className="group grid grid-cols-[auto_1fr_auto] items-center gap-4 px-0 py-5 transition-colors hover:bg-paper sm:grid-cols-[auto_1fr_auto_auto] sm:gap-8 sm:px-5"
+                  className="group grid min-w-0 flex-1 grid-cols-[auto_1fr_auto] items-center gap-4 px-0 py-5 transition-colors hover:bg-paper sm:grid-cols-[auto_1fr_auto_auto] sm:gap-8 sm:px-5"
                 >
                   <Thumb videoId={s.video_id} className="w-28 transition-transform duration-300 group-hover:scale-[1.03] sm:w-52" />
                   <div className="flex min-w-0 flex-col gap-1.5">
@@ -67,6 +68,13 @@ export default async function Library() {
                     {score ?? "–"}
                   </span>
                 </Link>
+                {/* Shown on hover with a mouse, always on touch screens. */}
+                <RemoveButton
+                  id={s.id}
+                  videoId={s.video_id}
+                  title={s.title ?? s.video_id}
+                  className="grid size-11 shrink-0 place-items-center rounded-full text-muted transition-[opacity,color,background-color] hover:bg-bad-soft hover:text-bad focus:opacity-100 pointer-fine:opacity-0 group-hover/row:opacity-100"
+                />
               </li>
             );
           })}

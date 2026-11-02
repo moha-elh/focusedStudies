@@ -62,6 +62,13 @@ function FeedbackForm({ action, onSent, onAnother }: { action: Action; onSent: (
       <label className="flex flex-col gap-2">
         <span className="text-xl font-semibold">What&apos;s working? What isn&apos;t?</span>
         <textarea
+          // Enter sends, Shift+Enter starts a new line (not while an input method is composing a character).
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              e.currentTarget.form?.requestSubmit();
+            }
+          }}
           name="message"
           required
           maxLength={2000}

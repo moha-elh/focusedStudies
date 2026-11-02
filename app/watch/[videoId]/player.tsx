@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Note } from "@/lib/db";
-import { fetchSkipSegments, fmtTime } from "@/lib/youtube";
+import { type Chapter, fetchSkipSegments, fmtTime } from "@/lib/youtube";
 import { Label, Spinner, Thumb } from "../../ui";
-import { saveNotes } from "./actions";
+import { getChapters, saveNotes } from "./actions";
 
 // Methods only exist once the player is ready, so every call is optional.
 type YTPlayer = {
@@ -58,6 +58,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const captions = useRef(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const scroller = useRef<HTMLDivElement>(null);
+  const chapterList = useRef<HTMLOListElement>(null);
   const scrollTop = useRef(0);
   const recenter = useRef<ReturnType<typeof setTimeout>>(undefined);
   const volume = useRef({ v: 100, at: 0 });
@@ -72,7 +73,11 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const [now, setNow] = useState(start ?? 0);
   const [duration, setDuration] = useState(0);
   const [skips, setSkips] = useState<[number, number][]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
+  // The side panel shows notes or, like YouTube's chapter panel, the list of chapters.
+  const [panel, setPanel] = useState<"notes" | "chapters">("notes");
+  const [cursorHidden, setCursorHidden] = useState(false);
   const [skipped, setSkipped] = useState(0);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -82,7 +87,8 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   // Slide only after Alt+N, so entering fullscreen hides the panel instantly instead of animating it away.
   const [slide, setSlide] = useState(false);
   const [canFull, setCanFull] = useState(false);
-  const [hud, setHud] = useState<number | null>(null);
+  const [hud, setHud] = useState<string | null>(null);
+  const currentChapter = Math.max(0, chapters.findLastIndex((c) => c.t <= now));
   const words = recap.trim() ? recap.trim().split(/\s+/).length : 0;
 
   // YouTube replaces the element it's given with an iframe, so hand it a fresh child each time
@@ -136,6 +142,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   useEffect(() => {
     let live = true;
     fetchSkipSegments(videoId).then((s) => live && setSkips(s));
+    getChapters(videoId).then((c) => live && setChapters(c), () => {});
     return () => {
       live = false;
     };
@@ -208,7 +215,10 @@ export default function Player({ videoId, title, start, previousRecap, previousN
       if (e instanceof WheelEvent) changeVolume(-e.deltaY / 20);
       else document.exitPointerLock();
     };
-    const onLockChange = () => !document.pointerLockElement && arm();
+    const onLockChange = () => {
+      setCursorHidden(!!document.pointerLockElement);
+      if (!document.pointerLockElement) arm();
+    };
     const events = ["mousemove", "mousedown", "wheel"] as const;
     events.forEach((t) => document.addEventListener(t, onActivity, true));
     document.addEventListener("pointerlockchange", onLockChange);
@@ -221,7 +231,10 @@ export default function Player({ videoId, title, start, previousRecap, previousN
       document.removeEventListener("pointerlockchange", onLockChange);
       window.removeEventListener("blur", arm);
       if (document.pointerLockElement) document.exitPointerLock();
+      setCursorHidden(false);
     };
+    // changeVolume only touches refs and state setters, so a stale copy behaves the same.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [full]);
 
   // Alt+N pauses and opens the note box, and closes it again (resuming), even mid-typing. F toggles fullscreen.
@@ -233,7 +246,8 @@ export default function Player({ videoId, title, start, previousRecap, previousN
       // e.code, not e.key: on a Mac Option+N types a dead key instead of "n".
       if (e.altKey && e.code === "KeyN" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        if (full ? open : document.activeElement === input.current) return closeNote();
+        if (full ? open && panel === "notes" : document.activeElement === input.current) return closeNote();
+        setPanel("notes");
         if (playing) {
           player.current?.pauseVideo?.();
           resume.current = true;
@@ -242,7 +256,24 @@ export default function Player({ videoId, title, start, previousRecap, previousN
           setSlide(true);
           setOpen(true);
         }
-        else focusInput();
+        else requestAnimationFrame(focusInput); // after the notes view is shown again
+        return;
+      }
+      // Alt+C (Option+C on a Mac) opens and closes the chapter list, like Alt+N for notes. YouTube's own chapter name
+      // can't be clicked inside an embed. e.code, not e.key: on a Mac Option+C types "ç".
+      if (e.altKey && e.code === "KeyC" && !e.ctrlKey && !e.metaKey && chapters.length > 1) {
+        e.preventDefault();
+        if (panel === "chapters" && (!full || open)) closeChapters();
+        else openChapters();
+        return;
+      }
+      // Previous/next chapter, YouTube's keys: Ctrl+←/→, Option+←/→ on a Mac (Ctrl+arrows switch desktops there).
+      const mac = /Mac|iP/.test(navigator.platform);
+      const chapterKey = mac ? e.altKey && !e.ctrlKey : e.ctrlKey && !e.altKey;
+      if (chapterKey && !e.metaKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && chapters.length > 1) {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return; // word-jumping while typing
+        e.preventDefault();
+        jumpChapter(e.key === "ArrowRight" ? 1 : -1);
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -267,13 +298,23 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [done, full, open]);
+    // The handlers it calls read only refs, setters and `chapters` (listed), so a stale copy behaves the same.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done, full, open, chapters, panel]);
 
   // The panel is inert until it opens, so focus it once it has.
   useEffect(() => {
     // preventScroll: otherwise the browser scrolls the still-offscreen panel into view, jolting the video and skipping the slide.
-    if (open) focusInput();
-  }, [open]);
+    if (open && panel === "notes") focusInput();
+  }, [open, panel]);
+
+  // Opening the chapter list scrolls the playing chapter into view, like YouTube. Only the list scrolls:
+  // scrollIntoView would also scroll the page and the fullscreen volume box, which shook the screen.
+  useEffect(() => {
+    const ol = chapterList.current;
+    const li = ol?.querySelector<HTMLElement>("[aria-current]")?.parentElement;
+    if (panel === "chapters" && ol && li) ol.scrollTop = li.offsetTop - ol.clientHeight / 2 + li.clientHeight / 2;
+  }, [panel, open]);
 
   // An unsent recap and notes survive a refresh. If browser storage is unavailable, we just skip the draft.
   // Read after mount (not in useState) so the server-rendered HTML matches the first client render.
@@ -325,6 +366,38 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     const el = input.current;
     el?.focus({ preventScroll: true });
     el?.setSelectionRange(el.value.length, el.value.length);
+  }
+
+  // Like YouTube: back goes to the start of the current chapter, or to the previous one if you're within 3s of its start.
+  function jumpChapter(dir: 1 | -1) {
+    const t = player.current?.getCurrentTime?.() ?? now;
+    const i = chapters.findLastIndex((c) => c.t <= t);
+    const to = dir === 1 ? chapters[i + 1] : t - (chapters[i]?.t ?? 0) > 3 ? chapters[i] : chapters[i - 1];
+    if (!to) return;
+    player.current?.seekTo?.(to.t, true);
+    flash(to.title);
+  }
+
+  function openChapters() {
+    setPanel("chapters");
+    if (full) {
+      setSlide(true);
+      setOpen(true);
+    }
+  }
+
+  function closeChapters() {
+    if (full) {
+      setOpen(false);
+      stage.current?.focus({ preventScroll: true });
+    } else setPanel("notes");
+  }
+
+  // A short message over the video (volume, chapter), since YouTube's own overlay doesn't show our changes.
+  function flash(text: string) {
+    setHud(text);
+    clearTimeout(hudTimer.current);
+    hudTimer.current = setTimeout(() => setHud(null), 1200);
   }
 
   // Click a saved note to fix it: Enter or clicking away keeps the change, Esc drops it. Emptying it keeps the old text.
@@ -387,9 +460,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     s.at = Date.now();
     p.setVolume(Math.round(s.v));
     if (s.v > 0) p.unMute?.();
-    setHud(Math.round(s.v));
-    clearTimeout(hudTimer.current);
-    hudTimer.current = setTimeout(() => setHud(null), 1000);
+    flash(`Volume ${Math.round(s.v)}%`);
   }
 
   function toggleFull() {
@@ -439,7 +510,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
               {skipped ? `Skipped ${skipped} sponsor ${skipped === 1 ? "segment" : "segments"}` : skips.length ? "Focus mode, sponsors skipped" : "Focus mode"}
             </span>
             {canFull && (
-              <button onClick={toggleFull} title="Full screen (F). Alt+N pauses and adds a note, C toggles captions, ↑/↓ or the mouse wheel change volume." className="rounded-full bg-paper px-4 py-2 text-sm transition-colors hover:bg-line">
+              <button onClick={toggleFull} title="Full screen (F). Alt+N pauses and adds a note, Alt+C shows chapters, C toggles captions, ↑/↓ or the mouse wheel change volume." className="rounded-full bg-paper px-4 py-2 text-sm transition-colors hover:bg-line">
                 Full screen
               </button>
             )}
@@ -456,9 +527,21 @@ export default function Player({ videoId, title, start, previousRecap, previousN
               <div ref={host} className={full ? "sticky top-0 h-full" : "absolute inset-0"} />
               {full && <div aria-hidden className="h-[200%]" />}
             </div>
+            {full && chapters.length > 1 && !open && !cursorHidden && (
+              // YouTube's own chapter label can't be clicked inside an embed, so this one opens the list.
+              // It hides with the cursor and covers only itself, so YouTube's buttons stay clickable.
+              <button
+                onClick={openChapters}
+                title="Chapters (Alt+C)"
+                className="absolute top-4 left-1/2 flex max-w-[min(420px,60%)] -translate-x-1/2 items-center gap-2 rounded-full bg-paper px-4 py-2 text-sm transition-colors hover:bg-line"
+              >
+                <span className="truncate">{chapters[currentChapter]?.title}</span>
+                <span aria-hidden>›</span>
+              </button>
+            )}
             {hud !== null && (
-              <span role="status" className="pointer-events-none absolute top-6 left-1/2 -translate-x-1/2 rounded-full bg-paper px-4 py-2 text-sm tabular-nums">
-                Volume {hud}%
+              <span role="status" className="pointer-events-none absolute top-20 left-1/2 -translate-x-1/2 rounded-full bg-paper px-4 py-2 text-sm tabular-nums">
+                {hud}
               </span>
             )}
             {/* Watch progress, in the sun color, along the bottom edge. */}
@@ -477,6 +560,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
                 : "h-80 lg:h-0 lg:min-h-full"
             }`}
           >
+            <div className={panel === "notes" ? "contents" : "hidden"}>
             <div className="flex items-baseline justify-between border-b border-line px-5 pt-5 pb-4">
               <h2 className="text-xl font-semibold">Notes</h2>
               <span className="text-sm text-muted">{notes.length ? `${notes.length} saved` : "Stamped with the video time"}</span>
@@ -542,8 +626,52 @@ export default function Player({ videoId, title, start, previousRecap, previousN
                 Add
               </button>
             </form>
+            </div>
+            {panel === "chapters" && (
+              <>
+                <div className="flex items-baseline justify-between border-b border-line px-5 pt-5 pb-4">
+                  <h2 className="text-xl font-semibold">Chapters</h2>
+                  <button onClick={closeChapters} aria-label="Close chapters" className="text-xl leading-none text-muted transition-colors hover:text-ink">
+                    ×
+                  </button>
+                </div>
+                <ol ref={chapterList} className="relative flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
+                  {chapters.map((c, i) => (
+                    <li key={c.t}>
+                      <button
+                        onClick={() => seek(c.t)}
+                        aria-current={i === currentChapter || undefined}
+                        className={`flex w-full items-center gap-3 rounded-media p-2 text-left transition-colors ${i === currentChapter ? "bg-sun-soft" : "hover:bg-canvas"}`}
+                      >
+                        {/* Same as Thumb: YouTube already serves these small, next/image would just re-host them. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {c.thumb && <img src={c.thumb} alt="" className="aspect-video w-24 shrink-0 rounded-[6px] bg-line object-cover" />}
+                        <span className="flex min-w-0 flex-col gap-1">
+                          <span className="line-clamp-2 leading-normal break-words">{c.title}</span>
+                          <span className="text-sm text-muted tabular-nums">{fmtTime(c.t)}</span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
           </section>
         </div>
+
+        {chapters.length > 1 && (
+          // Like the chapter name on youtube.com: shows where you are and opens the chapter list beside the video.
+          <div className="rise -mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 [--d:150ms]">
+            <button onClick={openChapters} className="flex min-w-0 items-center gap-2 rounded-full bg-paper px-4 py-2 text-sm transition-colors hover:bg-line">
+              <span className="shrink-0 text-muted tabular-nums">
+                Chapter {currentChapter + 1} of {chapters.length}
+              </span>
+              <span className="truncate font-semibold">{chapters[currentChapter]?.title}</span>
+              <span aria-hidden>›</span>
+            </button>
+            <span className="text-sm text-muted">Alt+C shows the chapters, Ctrl+← / → jumps between them (Option on Mac)</span>
+          </div>
+        )}
 
         <div className="rise flex flex-col justify-between gap-4 border-t border-line pt-6 [--d:200ms] sm:flex-row sm:items-center">
           <p className="max-w-xl text-muted">

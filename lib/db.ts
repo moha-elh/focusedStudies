@@ -52,3 +52,9 @@ export async function saveSession(s: NewSession): Promise<Session> {
     : { recap: "", feedback: null, ...s, id: randomUUID(), created_at: now };
   return check(await (await supabase()).from("sessions").upsert(row, { onConflict: "user_id,video_id" }).select(COLUMNS).single())!;
 }
+
+// Row-level security limits the delete to the caller's own row; someone else's id just deletes nothing.
+export async function deleteSession(id: string) {
+  if (!UUID.test(id)) return;
+  check(await (await supabase()).from("sessions").delete().eq("id", id));
+}

@@ -5,6 +5,7 @@ import { getSession, type Note } from "@/lib/db";
 import { toMarkdown, toPoint } from "@/lib/export";
 import { fmtTime } from "@/lib/youtube";
 import { ScoreRing, scoreColor, Thumb } from "../../ui";
+import RemoveButton from "../remove-button";
 import CopyButton from "./copy-button";
 
 // Each result type gets its own shape as well as its own color, so they read apart without color.
@@ -105,6 +106,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
           <Link href={`/watch/${s.video_id}`} className="btn">Rewatch and add notes ↗</Link>
           <a href={`/library/${s.id}/markdown`} download className="btn-outline">Download .md</a>
           <CopyButton text={toMarkdown(s)} />
+          <RemoveButton id={s.id} videoId={s.video_id} title={s.title ?? "This video"} className="grid size-12 place-items-center rounded-full border border-line text-muted transition-colors hover:border-bad hover:bg-bad-soft hover:text-bad" />
         </div>
       </header>
 
