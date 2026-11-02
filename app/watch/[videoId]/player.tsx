@@ -72,6 +72,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const [now, setNow] = useState(start ?? 0);
   const [duration, setDuration] = useState(0);
   const [skips, setSkips] = useState<[number, number][]>([]);
+  const [editing, setEditing] = useState<number | null>(null);
   const [skipped, setSkipped] = useState(0);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -326,6 +327,13 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     el?.setSelectionRange(el.value.length, el.value.length);
   }
 
+  // Click a saved note to fix it: Enter or clicking away keeps the change, Esc drops it. Emptying it keeps the old text.
+  function saveEdit(i: number, value: string) {
+    setEditing(null);
+    const text = value.trim();
+    if (text) setNotes((all) => all.map((n, j) => (j === i ? { ...n, text } : n)));
+  }
+
   // Alt+N again or Enter: hide the panel and, if Alt+N paused the video, pick up where you left off.
   function closeNote() {
     setOpen(false);
@@ -484,7 +492,31 @@ export default function Player({ videoId, title, start, previousRecap, previousN
                   <button onClick={() => seek(n.t)} title="Jump to this moment" className="pill-time shrink-0">
                     {fmtTime(n.t)}
                   </button>
-                  <p className="min-w-0 flex-1 leading-normal break-words">{n.text}</p>
+                  {editing === i ? (
+                    // Same font, line height and width as the note, and it grows with its text (field-sizing), so
+                    // the note stays exactly where it was. The ring sits outside the text without taking space.
+                    // ponytail: field-sizing is Chrome/Edge/Safari 26+; Firefox shows a fixed two-line box instead.
+                    <textarea
+                      autoFocus
+                      defaultValue={n.text}
+                      maxLength={1000}
+                      rows={1}
+                      aria-label="Edit note"
+                      onFocus={(e) => e.currentTarget.setSelectionRange(n.text.length, n.text.length)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
+                          saveEdit(i, e.currentTarget.value);
+                        } else if (e.key === "Escape") setEditing(null);
+                      }}
+                      onBlur={(e) => saveEdit(i, e.currentTarget.value)}
+                      className="min-w-0 flex-1 resize-none rounded-[4px] bg-white p-0 leading-normal break-words ring-1 ring-ink ring-offset-2 outline-none [field-sizing:content]"
+                    />
+                  ) : (
+                    <button onClick={() => setEditing(i)} title="Edit note" className="min-w-0 flex-1 cursor-text text-left leading-normal break-words">
+                      {n.text}
+                    </button>
+                  )}
                   <button
                     onClick={() => setNotes((all) => all.filter((_, j) => j !== i))}
                     aria-label="Delete note"
