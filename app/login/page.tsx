@@ -1,9 +1,18 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { siGithub, siGoogle } from "simple-icons";
 import { safeNext } from "@/lib/safe-next";
 import { supabase } from "@/lib/supabase";
 import { Label } from "../ui";
+
+// Kept out of search: just two sign-in buttons, and every ?next= link would be another copy of it. Links are still followed.
+export const metadata: Metadata = {
+  title: "Sign in",
+  description: "Sign in to FocusLearn with Google or GitHub to keep your notes, recaps and feedback in your library.",
+  alternates: { canonical: "/login" },
+  robots: { index: false, follow: true },
+};
 
 const PROVIDERS = [
   { id: "google", name: "Google", icon: siGoogle },

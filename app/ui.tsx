@@ -1,8 +1,9 @@
 // Small presentational pieces shared by server and client components.
 
-export const LINKS = [
+// [label, page, section on that page]. Section links scroll there without putting a #fragment in the URL.
+export const LINKS: [string, string, string?][] = [
   ["Watch", "/"],
-  ["Process", "/#process"],
+  ["Process", "/", "process"],
   ["Library", "/library"],
 ];
 

@@ -1,0 +1,33 @@
+# FocusLearn
+
+> FocusLearn is a free web app for learning from YouTube videos. You paste a YouTube link, watch it in a distraction-free player, then write a recap from memory. An AI checks your recap against the video's transcript and tells you what you got right, what you missed and what you got wrong.
+
+FocusLearn is for people who want to remember what they watch, not just finish it: students, self-learners and anyone working through lectures, tutorials, talks or online courses on YouTube.
+
+It is not a flashcard, quiz or spaced-repetition app. There are no generated questions or review schedules. The one exercise is free recall: explaining the video back in your own words.
+
+## How it works
+
+1. Watch: the video plays on its own, without YouTube's sidebar, comments or autoplay. Sponsor segments are skipped automatically (using SponsorBlock), and the video's chapters are shown when it has them.
+2. Take notes: add notes while you watch. Each note is pinned to the timestamp where you wrote it, so you can jump back to that moment.
+3. Recall: when the video ends, write what you learned from memory.
+4. Compare: the recap is graded against the transcript. Feedback lists what you nailed, what you missed and what was not quite right, each linked to the moment in the video, plus a score out of 100.
+5. Revisit: rewatch the same video later, add to your notes, update your recap and see whether your score improves.
+
+Every session (video, notes, recap and feedback) is saved to a private personal library.
+
+## Good to know
+
+- Price: free to use right now.
+- Account: sign in with Google or GitHub. No password.
+- Captions: grading needs the video's transcript, so the video must have captions. Without them you can still watch and take notes.
+- Best for: videos with a clear point, such as lectures, tutorials, talks and courses. Very long videos (over about an hour) may be too long to grade.
+- Platform: runs in any modern browser; nothing to install.
+- Browser extension (optional, Chrome and Edge): adds an "Open in FocusLearn" button to YouTube videos. Clicking it pauses YouTube and continues the same video at the same second in FocusLearn.
+- Privacy: each library is private to its owner. Recaps and transcripts are sent to an AI provider only to grade them. FocusLearn does not sell data or show ads.
+
+## Pages
+
+- [Home](https://focused-studies.vercel.app/): what FocusLearn does, how it works, the browser extension and FAQ.
+- [Privacy policy](https://focused-studies.vercel.app/privacy): what data is collected, how it is used and which services process it.
+- [Sign in](https://focused-studies.vercel.app/login): start using FocusLearn with a Google or GitHub account.

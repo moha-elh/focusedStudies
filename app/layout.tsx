@@ -3,9 +3,10 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DESCRIPTION, SITE } from "@/lib/site";
 import { currentUser, supabase } from "@/lib/supabase";
 import Feedback from "./feedback";
-import NavLinks, { PasteButton } from "./nav-links";
+import NavLinks, { PasteButton, SectionLink } from "./nav-links";
 import { LINKS, Mark } from "./ui";
 import "./globals.css";
 
@@ -22,10 +23,15 @@ const SOCIALS = [
   ["YouTube", "https://youtube.com/", "M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.2 3.6-6.2 3.6Z"],
 ];
 
-// The link preview image is app/opengraph-image.jpg; on Vercel, Next fills in the site's own URL for it.
+// The link preview image is app/opengraph-image.jpg. Open Graph and Twitter take each page's own title and description.
+// The canonical "/" is for the home page (it drops ?paste=1 and ?invalid=1); other public pages set their own.
 export const metadata: Metadata = {
-  title: "FocusLearn",
-  description: "Watch one video with no distractions, then prove you learned it.",
+  metadataBase: new URL(SITE),
+  title: { default: "FocusLearn: watch YouTube without distractions, then prove you learned it", template: "%s · FocusLearn" },
+  description: DESCRIPTION,
+  applicationName: "FocusLearn",
+  alternates: { canonical: "/" },
+  openGraph: { type: "website", siteName: "FocusLearn", locale: "en_US" },
   twitter: { card: "summary_large_image" },
 };
 
@@ -97,15 +103,21 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <nav aria-label="Footer">
               <p className="mb-3 text-sm text-night-muted">Product</p>
               <ul>
-                {LINKS.map(([label, href]) => (
-                  <li key={href}><Link href={href} className="inline-block py-2 transition-colors hover:text-sun">{label}</Link></li>
+                {LINKS.map(([label, href, section]) => (
+                  <li key={label}>
+                    {section ? (
+                      <SectionLink section={section} className="inline-block py-2 transition-colors hover:text-sun">{label}</SectionLink>
+                    ) : (
+                      <Link href={href} className="inline-block py-2 transition-colors hover:text-sun">{label}</Link>
+                    )}
+                  </li>
                 ))}
               </ul>
             </nav>
             <div>
               <p className="mb-3 text-sm text-night-muted">Get started</p>
               <ul>
-                <li><Link href="/?paste=1#start" className="inline-block py-2 transition-colors hover:text-sun">Paste a link</Link></li>
+                <li><Link href="/?paste=1" className="inline-block py-2 transition-colors hover:text-sun">Paste a link</Link></li>
                 {!user && <li><Link href="/login" className="inline-block py-2 transition-colors hover:text-sun">Sign in</Link></li>}
               </ul>
             </div>

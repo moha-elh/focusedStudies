@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Privacy · FocusLearn" };
+export const metadata: Metadata = {
+  title: "Privacy",
+  description: "What FocusLearn collects when you sign in and learn, how it's used, and which services (Supabase, Vercel, Groq, YouTube, SponsorBlock) handle it.",
+  alternates: { canonical: "/privacy" },
+};
 
 const SECTIONS: [string, string][] = [
   ["What we collect", "When you sign in with Google or GitHub, we receive your name, email address and profile picture. When you use FocusLearn, we save the videos you watch, your notes, your recaps and the feedback you get. If you use the Feedback button, we save your message and the page you sent it from."],

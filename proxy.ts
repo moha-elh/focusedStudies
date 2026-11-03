@@ -29,6 +29,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Skip static files (any image or font type), or signed-out visitors get redirected instead of the file.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|webp|avif|gif|svg|ico|woff2?)$).*)"],
+  // Skip static files (images, fonts, and the .txt/.xml crawler files: robots.txt, sitemap.xml, llms.txt),
+  // or signed-out visitors and bots get redirected instead of the file.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|webp|avif|gif|svg|ico|woff2?|txt|xml)$).*)"],
 };

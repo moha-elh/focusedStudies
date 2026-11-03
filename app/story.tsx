@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   siAirbnb, siApple, siDuolingo, siFigma, siGithub, siMeta, siNetflix, siNotion, siNvidia, siShopify, siSpotify,
 } from "simple-icons";
-import { Burst } from "./hero-cta";
+import { SectionLink } from "./nav-links";
 import { Label, ScoreRing } from "./ui";
 
 // Signed-out landing story: the four steps told with mockups of the real screens, panels warming from sky to sun.
@@ -249,7 +249,7 @@ const HANDOFF_STEPS = [
 
 export function Extension() {
   return (
-    <section className="wrap pt-32">
+    <section id="extension" className="wrap scroll-mt-6 pt-32">
       <div className="reveal grid items-center gap-12 rounded-[32px] bg-night p-6 text-night-ink sm:p-12 lg:grid-cols-[4fr_7fr]">
         <div className="flex flex-col gap-6">
           <span className="flex items-center gap-2.5 text-sm text-night-muted">
@@ -281,7 +281,7 @@ export function Extension() {
 }
 
 const FAQ = [
-  ["Is it free?", "Yes, right now it's free to use. All you need is an email address to sign in."],
+  ["Is it free?", "Yes, right now it's free to use. Sign in with your Google or GitHub account, no password needed."],
   ["Does the video need captions?", "Yes, for grading: your recap is checked against the video's transcript. Without captions you can still watch and take notes."],
   ["What videos work best?", "Ones with a clear point: lectures, tutorials, talks and courses. Very long videos (over an hour or so) may be too long to grade."],
   ["Is my library private?", "Yes. Your notes, recaps and scores are tied to your account, and only you can see them."],
@@ -315,18 +315,31 @@ export function Faq() {
 export function ClosingCta() {
   return (
     <section className="wrap pt-32">
-      {/* Bookends the hero: same meadow, same starburst play button. */}
-      <div className="reveal relative flex min-h-[520px] flex-col items-center overflow-hidden rounded-[32px] bg-[#4d8fd9] px-6 pt-12 text-center sm:min-h-[600px] sm:pt-14">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/hero2.webp" alt="" className="absolute inset-0 size-full object-cover object-[50%_20%]" />
-        <div className="relative flex flex-col items-center gap-6">
-          <h2 className="max-w-[760px] text-display font-semibold sm:text-hero">
-            Pick one video you&apos;ve been meaning to <span className="text-sun">learn from.</span>
+      <div className="reveal grid items-center gap-10 lg:grid-cols-[7fr_5fr] lg:gap-16">
+        <div className="flex flex-col items-start gap-8">
+          <h2 className="text-hero font-semibold sm:text-mark">
+            Start
+            <br />
+            learning.
           </h2>
-          <Link href="/login" aria-label="Sign in to start" className="burst relative grid size-20 place-items-center sm:size-24">
-            <Burst icon="size-7 -translate-x-[2%] sm:size-8" />
-          </Link>
+          <p className="max-w-xl text-xl leading-normal text-muted">
+            Pick one video you&apos;ve been meaning to learn from. Watch it without the noise, then see what actually stuck.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/login" className="btn">Start free ↗</Link>
+            <SectionLink section="extension" className="btn-outline">Get the extension</SectionLink>
+          </div>
         </div>
+        {/* The old computer on its own, transparent around it, so it sits straight on the page. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/computer.webp"
+          alt=""
+          width={1122}
+          height={1402}
+          loading="lazy"
+          className="float mx-auto w-full max-w-[520px]"
+        />
       </div>
     </section>
   );

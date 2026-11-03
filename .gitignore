@@ -50,3 +50,6 @@ next-env.d.ts
 
 # design references and source images (kept locally, not shipped)
 /design
+
+# Personal notes, not part of the app
+IMPROVEMENTS.md

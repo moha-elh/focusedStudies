@@ -20,7 +20,7 @@ export default function NotFound() {
           The link might be broken, or the video or session no longer exists. Paste the link again and start fresh.
         </p>
         <div className="rise flex flex-wrap justify-center gap-3 [--d:300ms]">
-          <Link href="/?paste=1#start" className="btn">Paste a new link ↗</Link>
+          <Link href="/?paste=1" className="btn">Paste a new link ↗</Link>
           <Link href="/library" className="btn-outline">Open library</Link>
         </div>
       </section>

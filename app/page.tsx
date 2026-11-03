@@ -3,15 +3,17 @@ import { redirect } from "next/navigation";
 import { listSessions, type Session } from "@/lib/db";
 import { currentUser } from "@/lib/supabase";
 import { parseVideoId } from "@/lib/youtube";
-import HeroCta from "./hero-cta";
+import HeroCta, { Burst } from "./hero-cta";
+import { ScrollToSection } from "./nav-links";
 import { ClosingCta, Extension, Faq, Marquee, Story } from "./story";
 import SplitText from "./SplitText";
+import StructuredData from "./structured-data";
 import { avgScore, Label, scoreColor, scoreOf, Thumb } from "./ui";
 
 async function start(formData: FormData) {
   "use server";
   const id = parseVideoId(String(formData.get("url") ?? ""));
-  redirect(id ? `/watch/${id}` : "/?invalid=1#start");
+  redirect(id ? `/watch/${id}` : "/?invalid=1");
 }
 
 // Blocks step up like a rising sun: sky to full sun.
@@ -33,13 +35,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
       {/* Hero slides up under the layout header (h-21). */}
       <section id="start" className="relative -mt-21 flex min-h-[680px] flex-col overflow-hidden bg-[#4d8fd9] pt-21 sm:min-h-[820px]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/hero2.webp" alt="" className="hero-img absolute inset-0 size-full object-cover object-[50%_60%]" />
+        <img src="/hero.webp" alt="" className="hero-img absolute inset-0 size-full object-cover object-[50%_60%]" />
         <div aria-hidden className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-b from-canvas/0 to-canvas" />
 
         <div className="wrap relative flex flex-1 flex-col items-center pt-12 text-center sm:pt-16">
           {user ? (
-            <h1 className="rise mb-6 max-w-[920px] text-display sm:text-hero">
-              What will you <span className="text-sun">remember</span> today?
+            <h1 className="rise mb-6 max-w-[620px] text-display sm:text-hero">
+              {/* nowrap keeps "remember today?" together on the second line. */}
+              What will you <span className="whitespace-nowrap"><span className="text-sun">remember</span> today?</span>
             </h1>
           ) : (
             <h1 className="rise mb-6 max-w-[920px] text-display sm:text-hero">
@@ -61,6 +64,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
         </div>
       )}
 
+      <ScrollToSection />
       {user ? (
         <>
           <SignedIn sessions={sessions} />
@@ -68,6 +72,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
         </>
       ) : (
         <>
+          <StructuredData />
           <Marquee />
           <Statement />
           <Story />
@@ -80,7 +85,33 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
   );
 }
 
-// Returning learners: pick up the last video, then their score and recent recaps.
+const date = (s: Session) => new Date(s.updated_at ?? s.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+
+// A recap means there's feedback to read; without one the video is still in progress, so go back to it.
+const href = (s: Session) => (s.recap ? `/library/${s.id}` : `/watch/${s.video_id}`);
+
+function Status({ s }: { s: Session }) {
+  const score = scoreOf(s.feedback);
+  const notes = `${s.notes?.length ?? 0} ${s.notes?.length === 1 ? "note" : "notes"}`;
+  return (
+    <span className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
+      {score !== null ? (
+        <span className={`font-semibold tabular-nums ${scoreColor(score)}`}>Score {score}</span>
+      ) : (
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden className="size-2 rounded-full bg-sun" />
+          Still watching
+        </span>
+      )}
+      <span aria-hidden>·</span>
+      {notes}
+      <span aria-hidden>·</span>
+      {date(s)}
+    </span>
+  );
+}
+
+// Returning learners: the last video front and centre, then the rest of what they've been learning.
 function SignedIn({ sessions }: { sessions: Session[] }) {
   if (!sessions.length) {
     return (
@@ -93,72 +124,74 @@ function SignedIn({ sessions }: { sessions: Session[] }) {
     );
   }
 
-  const last = sessions[0];
-  const lastScore = scoreOf(last.feedback);
+  const [last, ...rest] = sessions;
   const avg = avgScore(sessions);
 
   return (
     <>
-      {/* Continue */}
+      {/* Continue: a big card, the one thing most returning learners came back for. */}
       <section className="wrap pt-16">
         <Label className="reveal mb-4">Pick up where you left off</Label>
-        <div className="reveal flex flex-col gap-5 rounded-panel bg-paper p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
-          <Thumb videoId={last.video_id} className="w-full sm:w-40" />
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="line-clamp-2 text-xl font-semibold break-words">{last.title ?? last.video_id}</p>
-            <p className="text-sm text-muted">
-              {last.notes?.length ?? 0} {last.notes?.length === 1 ? "note" : "notes"}
-              {lastScore !== null && <> · score <span className={`font-semibold ${scoreColor(lastScore)}`}>{lastScore}</span></>}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Link href={`/watch/${last.video_id}`} className="btn">{last.recap ? "Rewatch and add notes ↗" : "Continue watching ↗"}</Link>
-            {last.recap && <Link href={`/library/${last.id}`} className="btn-outline">See feedback</Link>}
-          </div>
-        </div>
+        <Link
+          href={`/watch/${last.video_id}`}
+          className="reveal group grid items-center gap-6 rounded-hero bg-paper p-4 transition-colors hover:bg-sky/40 sm:p-5 lg:grid-cols-[minmax(0,560px)_1fr] lg:gap-10"
+        >
+          <span className="relative block overflow-hidden rounded-panel">
+            <Thumb videoId={last.video_id} className="w-full transition-transform duration-500 group-hover:scale-[1.03]" />
+            {/* The hero's starburst play button, so "continue" reads as the same action. */}
+            <span aria-hidden className="absolute inset-0 grid place-items-center">
+              <span className="burst relative grid size-20 place-items-center group-hover:scale-110">
+                <Burst icon="size-7 -translate-x-[2%]" />
+              </span>
+            </span>
+          </span>
+          <span className="flex min-w-0 flex-col items-start gap-4 lg:pr-6">
+            <span className="line-clamp-3 text-display font-semibold break-words sm:text-h1">{last.title ?? last.video_id}</span>
+            <Status s={last} />
+            <span className="btn mt-2">{last.recap ? "Rewatch and add notes ↗" : "Continue watching ↗"}</span>
+          </span>
+        </Link>
       </section>
 
-      {/* Recently learned */}
-      <section className="wrap pt-24">
-        <div className="reveal mb-10 flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <Label className="mb-4">Your notes</Label>
-            <h2 className="text-display font-semibold sm:text-h1">Notes between frames.</h2>
-          </div>
-          <Link href="/library" className="py-3 font-semibold transition-colors hover:text-link">Open library ↗</Link>
-        </div>
-
-        <div className="flex flex-wrap items-stretch gap-6">
-          <div className="reveal flex min-h-[420px] min-w-0 flex-[1_1_320px] flex-col justify-between gap-10 rounded-hero bg-night p-8 text-night-ink">
-            <span className="text-night-muted">Average score</span>
+      {rest.length > 0 && (
+        <section className="wrap pt-24">
+          <div className="reveal mb-10 flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className={`text-hero font-semibold sm:text-mark ${avg !== null ? scoreColor(avg, true) : ""}`}>{avg ?? "–"}</p>
-              <p className="mt-2 text-night-muted">
-                across {sessions.length} {sessions.length === 1 ? "video" : "videos"}
-              </p>
+              <Label className="mb-4">Your library</Label>
+              <h2 className="text-display font-semibold sm:text-h1">Recently learned.</h2>
             </div>
-            <Link href="/library" className="btn self-start bg-paper text-ink hover:bg-sky">See everything ↗</Link>
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+              <p className="text-muted">
+                <span className="font-semibold text-ink tabular-nums">{sessions.length}</span> {sessions.length === 1 ? "video" : "videos"}
+                {avg !== null && (
+                  <>
+                    {" · average "}
+                    <span className={`font-semibold tabular-nums ${scoreColor(avg)}`}>{avg}</span>
+                  </>
+                )}
+              </p>
+              <Link href="/library" className="py-3 font-semibold transition-colors hover:text-link">Open library ↗</Link>
+            </div>
           </div>
 
-          <ul className="grid min-w-0 flex-[2_1_600px] grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-x-8 gap-y-2">
-            {sessions.filter((s) => s.recap).slice(0, 4).map((s) => {
-              const score = scoreOf(s.feedback);
-              return (
-                <li key={s.id} className="reveal border-t border-line pt-5 pb-4">
-                  <Link href={`/library/${s.id}`} className="group flex h-full flex-col justify-between gap-5 transition-transform duration-300 hover:-translate-y-1">
-                    <p className="line-clamp-3 text-xl leading-[1.4] break-words">“{s.recap}”</p>
-                    <span className="flex min-w-0 items-center gap-3">
-                      <Thumb videoId={s.video_id} className="w-16" />
-                      <span className="min-w-0 flex-1 truncate text-sm text-muted group-hover:text-ink">{s.title ?? s.video_id}</span>
-                      {score !== null && <span className={`text-sm font-semibold ${scoreColor(score)}`}>{score}</span>}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
+          <ul className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+            {rest.slice(0, 6).map((s) => (
+              <li key={s.id} className="reveal">
+                <Link href={href(s)} className="group flex flex-col gap-4">
+                  <span className="block overflow-hidden rounded-panel">
+                    <Thumb videoId={s.video_id} className="w-full transition-transform duration-500 group-hover:scale-[1.04]" />
+                  </span>
+                  <span className="flex flex-col gap-2">
+                    <span className="line-clamp-2 text-xl font-semibold break-words transition-colors group-hover:text-link">{s.title ?? s.video_id}</span>
+                    {s.recap && <span className="line-clamp-2 leading-normal text-muted">“{s.recap}”</span>}
+                    <Status s={s} />
+                  </span>
+                </Link>
+              </li>
+            ))}
           </ul>
-        </div>
-      </section>
+        </section>
+      )}
     </>
   );
 }
