@@ -22,6 +22,19 @@ create unique index if not exists sessions_user_video on public.sessions (user_i
 -- Folders in the library: just a name on each video (none = unsorted). A folder exists while a video is in it.
 alter table public.sessions add column if not exists folder text check (char_length(folder) between 1 and 40);
 
+-- Folders made before any video is in them. A folder's name is still what its videos store in sessions.folder.
+create table if not exists public.folders (
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  name text not null check (char_length(name) between 1 and 40),
+  created_at timestamptz not null default now(),
+  primary key (user_id, name)
+);
+alter table public.folders enable row level security;
+drop policy if exists "own folders" on public.folders;
+create policy "own folders" on public.folders for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
 -- Row-level security: a signed-in user can only see and change their own rows. Signed-out requests see nothing.
 alter table public.sessions enable row level security;
 drop policy if exists "own sessions" on public.sessions;

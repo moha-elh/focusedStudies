@@ -61,6 +61,16 @@ export async function setFolder(ids: string[], folder: string | null) {
   check(await (await supabase()).from("sessions").update({ folder }).in("id", ids));
 }
 
+// Folder names, including empty ones; folders that have videos are also found on the videos themselves.
+export async function listFolders(): Promise<string[]> {
+  return (check(await (await supabase()).from("folders").select("name")) ?? []).map((f) => f.name);
+}
+
+// Already there is fine (user_id comes from the login token, like sessions).
+export async function addFolder(name: string) {
+  check(await (await supabase()).from("folders").upsert({ name }, { onConflict: "user_id,name", ignoreDuplicates: true }));
+}
+
 // Row-level security limits the delete to the caller's own row; someone else's id just deletes nothing.
 export async function deleteSession(id: string) {
   if (!UUID.test(id)) return;

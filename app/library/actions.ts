@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { deleteSession, setFolder } from "@/lib/db";
+import { addFolder, deleteSession, setFolder } from "@/lib/db";
 
 const folderName = (form: FormData) => String(form.get("folder") ?? "").trim().replace(/\s+/g, " ").slice(0, 40) || null;
 
@@ -12,10 +12,12 @@ export async function moveSession(id: string, form: FormData) {
   revalidatePath("/library");
 }
 
-// A folder is a name on its videos, so a new one starts with the videos picked for it.
+// Picking videos is optional: an empty folder waits in the folders table.
 export async function createFolder(form: FormData) {
   const name = folderName(form);
-  if (name) await setFolder(form.getAll("ids").map(String).slice(0, 500), name);
+  if (!name) return;
+  await addFolder(name);
+  await setFolder(form.getAll("ids").map(String).slice(0, 500), name);
   revalidatePath("/library");
 }
 

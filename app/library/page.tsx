@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listSessions } from "@/lib/db";
+import { listFolders, listSessions } from "@/lib/db";
 import { avgScore, Label, scoreColor, scoreOf, Thumb } from "../ui";
 import Folder from "./folder";
 import FolderButton from "./folder-button";
@@ -8,8 +8,9 @@ import RemoveButton from "./remove-button";
 
 // Like a file manager: the library shows its folders, then the videos not in one. A folder shows its videos.
 export default async function Library({ searchParams }: { searchParams: Promise<{ folder?: string }> }) {
-  const all = await listSessions();
+  const [all, empty] = await Promise.all([listSessions(), listFolders()]);
   const folders = Map.groupBy(all.filter((s) => s.folder), (s) => s.folder!);
+  for (const name of empty) if (!folders.has(name)) folders.set(name, []);
   const names = [...folders.keys()].sort((a, b) => a.localeCompare(b));
   // An unknown folder (its last video moved out) shows the library.
   const want = (await searchParams).folder;
@@ -47,7 +48,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
         )}
       </header>
 
-      {!on && all.length > 0 && (
+      {!on && (all.length > 0 || names.length > 0) && (
         <section aria-label="Folders" className="pt-10">
           <ul className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
             {names.map((name, i) => (
@@ -63,7 +64,11 @@ export default async function Library({ searchParams }: { searchParams: Promise<
         </section>
       )}
 
-      {!all.length ? (
+      {on && !sessions.length ? (
+        <p className="rise py-10 leading-normal text-muted">
+          This folder is empty. Use the folder button on any video in your library to move it here.
+        </p>
+      ) : !all.length && !names.length ? (
         <section className="rise relative mt-8 overflow-hidden rounded-[32px] bg-[#4d8fd9] [--d:150ms]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/hero.webp" alt="" className="absolute inset-0 size-full object-cover object-[50%_70%]" />
