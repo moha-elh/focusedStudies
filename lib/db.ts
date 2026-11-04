@@ -12,6 +12,7 @@ export type Session = {
   recap: string;
   feedback: unknown;
   notes?: Note[]; // taken while watching, t = seconds into the video
+  folder?: string | null; // library folder, null = unsorted
   created_at: string;
   updated_at?: string | null;
 };
@@ -20,7 +21,7 @@ export type Session = {
 type NewSession = Pick<Session, "video_id" | "title" | "notes"> & Partial<Pick<Session, "recap" | "feedback">>;
 
 // Every query runs as the signed-in user; row-level security (supabase/schema.sql) scopes it to their sessions.
-const COLUMNS = "id, video_id, title, recap, feedback, notes, created_at, updated_at";
+const COLUMNS = "id, video_id, title, recap, feedback, notes, folder, created_at, updated_at";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Throws on errors instead of returning nothing, so a failed read never looks like an empty library.
@@ -51,6 +52,12 @@ export async function saveSession(s: NewSession): Promise<Session> {
     ? { ...prev, ...s, title: s.title ?? prev.title, updated_at: now }
     : { recap: "", feedback: null, ...s, id: randomUUID(), created_at: now };
   return check(await (await supabase()).from("sessions").upsert(row, { onConflict: "user_id,video_id" }).select(COLUMNS).single())!;
+}
+
+// Doesn't touch updated_at, so filing a video away doesn't move it to the top of the library.
+export async function setFolder(id: string, folder: string | null) {
+  if (!UUID.test(id)) return;
+  check(await (await supabase()).from("sessions").update({ folder }).eq("id", id));
 }
 
 // Row-level security limits the delete to the caller's own row; someone else's id just deletes nothing.

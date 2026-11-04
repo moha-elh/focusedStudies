@@ -19,6 +19,9 @@ alter table public.sessions add column if not exists user_id uuid default auth.u
 alter table public.sessions drop constraint if exists sessions_video_id_key;
 create unique index if not exists sessions_user_video on public.sessions (user_id, video_id);
 
+-- Folders in the library: just a name on each video (none = unsorted). A folder exists while a video is in it.
+alter table public.sessions add column if not exists folder text check (char_length(folder) between 1 and 40);
+
 -- Row-level security: a signed-in user can only see and change their own rows. Signed-out requests see nothing.
 alter table public.sessions enable row level security;
 drop policy if exists "own sessions" on public.sessions;

@@ -1,24 +1,40 @@
 import Link from "next/link";
 import { listSessions } from "@/lib/db";
 import { avgScore, Label, scoreColor, scoreOf, Thumb } from "../ui";
+import Folder from "./folder";
+import FolderButton from "./folder-button";
 import RemoveButton from "./remove-button";
 
-export default async function Library() {
-  const sessions = await listSessions();
-  const avg = avgScore(sessions);
+// Like a file manager: the library shows its folders, then the videos not in one. A folder shows its videos.
+export default async function Library({ searchParams }: { searchParams: Promise<{ folder?: string }> }) {
+  const all = await listSessions();
+  const folders = Map.groupBy(all.filter((s) => s.folder), (s) => s.folder!);
+  const names = [...folders.keys()].sort((a, b) => a.localeCompare(b));
+  // An unknown folder (its last video moved out) shows the library.
+  const want = (await searchParams).folder;
+  const on = want && folders.has(want) ? want : null;
+  const inView = on ? folders.get(on)! : all;
+  const sessions = on ? inView : all.filter((s) => !s.folder);
+  const avg = avgScore(inView);
 
   return (
     <main className="wrap flex flex-col pt-10">
       <header className="rise flex flex-wrap items-end justify-between gap-6 border-b-2 border-ink pb-8">
-        <div>
-          <Label className="mb-4">Library</Label>
-          <h1 className="text-h1 font-semibold sm:text-hero">Everything you&apos;ve learned.</h1>
+        <div className="min-w-0">
+          {on ? (
+            <Link href="/library" className="mb-4 flex w-fit items-center gap-2.5 text-sm text-muted transition-colors hover:text-ink">
+              <span aria-hidden>←</span> Library
+            </Link>
+          ) : (
+            <Label className="mb-4">Library</Label>
+          )}
+          <h1 className="text-h1 font-semibold break-words sm:text-hero">{on ?? "Everything you’ve learned."}</h1>
         </div>
-        {sessions.length > 0 && (
+        {inView.length > 0 && (
           <dl className="flex gap-12">
             <div>
               <dt className="text-muted">Videos</dt>
-              <dd className="text-h1 font-semibold tabular-nums">{sessions.length}</dd>
+              <dd className="text-h1 font-semibold tabular-nums">{inView.length}</dd>
             </div>
             {avg !== null && (
               <div>
@@ -30,7 +46,20 @@ export default async function Library() {
         )}
       </header>
 
-      {!sessions.length ? (
+      {!on && names.length > 0 && (
+        <section aria-label="Folders" className="pt-10">
+          <ul className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
+            {names.map((name, i) => (
+              <li key={name} className="rise" style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}>
+                <Folder name={name} sessions={folders.get(name)!} />
+              </li>
+            ))}
+          </ul>
+          {sessions.length > 0 && <h2 className="mt-16 border-b border-line pb-4 text-xl font-semibold">Not in a folder</h2>}
+        </section>
+      )}
+
+      {!all.length ? (
         <section className="rise relative mt-8 overflow-hidden rounded-[32px] bg-[#4d8fd9] [--d:150ms]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/hero.webp" alt="" className="absolute inset-0 size-full object-cover object-[50%_70%]" />
@@ -44,7 +73,7 @@ export default async function Library() {
           </div>
         </section>
       ) : (
-        <ul>
+        <ul className={on ? "pt-2" : ""}>
           {sessions.map((s, i) => {
             const score = scoreOf(s.feedback);
             return (
@@ -69,6 +98,12 @@ export default async function Library() {
                   </span>
                 </Link>
                 {/* Shown on hover with a mouse, always on touch screens. */}
+                <FolderButton
+                  id={s.id}
+                  folder={s.folder ?? null}
+                  folders={names}
+                  className="grid size-11 shrink-0 place-items-center rounded-full text-muted transition-[opacity,color,background-color] hover:bg-line hover:text-ink focus:opacity-100 pointer-fine:opacity-0 group-hover/row:opacity-100"
+                />
                 <RemoveButton
                   id={s.id}
                   videoId={s.video_id}
