@@ -22,3 +22,7 @@ export async function currentUser() {
   const { data } = await (await supabase()).auth.getClaims();
   return data?.claims ?? null;
 }
+
+// True only when the app talks to the Supabase running on this machine (`npm run dev:local`). Turns on the
+// email + password test sign-in, which the production project never accepts.
+export const LOCAL_SUPABASE = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(process.env.SUPABASE_URL ?? "");

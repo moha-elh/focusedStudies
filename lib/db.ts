@@ -20,7 +20,7 @@ export type Session = {
 // recap/feedback are left out while watching (notes only); a new row then starts with no recap yet.
 type NewSession = Pick<Session, "video_id" | "title" | "notes"> & Partial<Pick<Session, "recap" | "feedback">>;
 
-// Every query runs as the signed-in user; row-level security (supabase/schema.sql) scopes it to their sessions.
+// Every query runs as the signed-in user; row-level security (supabase/migrations) scopes it to their sessions.
 const COLUMNS = "id, video_id, title, recap, feedback, notes, folder, created_at, updated_at";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

@@ -1,4 +1,4 @@
--- Run in Supabase: Dashboard → SQL Editor → paste → Run. Safe to re-run; also upgrades a table made before accounts.
+-- Applied by the Supabase CLI: locally with `npm run db:reset`, to production with `npx supabase db push`. Safe to re-run.
 create table if not exists public.sessions (
   id uuid primary key default gen_random_uuid(),
   video_id text not null,

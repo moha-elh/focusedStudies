@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { siGithub, siGoogle } from "simple-icons";
 import { safeNext } from "@/lib/safe-next";
-import { supabase } from "@/lib/supabase";
+import { LOCAL_SUPABASE, supabase } from "@/lib/supabase";
 import { Label } from "../ui";
 
 // Kept out of search: just two sign-in buttons, and every ?next= link would be another copy of it. Links are still followed.
@@ -35,7 +35,17 @@ async function signIn(formData: FormData) {
   redirect(error ? `/login?error=send&next=${encodeURIComponent(next)}` : data.url);
 }
 
+// Local testing only: signs in with the seeded account (supabase/seed.sql) instead of Google/GitHub.
+async function testSignIn(formData: FormData) {
+  "use server";
+  if (!LOCAL_SUPABASE) redirect("/login");
+  const next = safeNext(formData.get("next"));
+  const { error } = await (await supabase()).auth.signInWithPassword({ email: String(formData.get("email")), password: String(formData.get("password")) });
+  redirect(error ? `/login?error=test&next=${encodeURIComponent(next)}` : next);
+}
+
 const ERRORS: Record<string, string> = {
+  test: "Wrong test email or password. Run npm run db:reset to recreate the test account.",
   send: "Couldn't start sign-in. Please try again.",
   link: "Sign-in didn't finish. Please try again.",
 };
@@ -61,6 +71,15 @@ export default async function Login({ searchParams }: Props) {
             </button>
           ))}
         </form>
+        {LOCAL_SUPABASE && (
+          <form action={testSignIn} className="flex flex-col gap-3 border-t border-line pt-6">
+            <p className="text-sm text-muted">Local test account (only on your machine)</p>
+            <input type="hidden" name="next" value={safeNext(next)} />
+            <input name="email" type="email" defaultValue="test@focuslearn.dev" aria-label="Email" className="min-h-12 rounded-full border border-line bg-white px-4 outline-none focus:border-ink" />
+            <input name="password" type="password" defaultValue="focuslearn" aria-label="Password" className="min-h-12 rounded-full border border-line bg-white px-4 outline-none focus:border-ink" />
+            <button className="btn justify-center">Sign in as test user</button>
+          </form>
+        )}
       </section>
     </main>
   );
