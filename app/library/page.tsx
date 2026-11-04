@@ -3,6 +3,7 @@ import { listSessions } from "@/lib/db";
 import { avgScore, Label, scoreColor, scoreOf, Thumb } from "../ui";
 import Folder from "./folder";
 import FolderButton from "./folder-button";
+import NewFolder from "./new-folder";
 import RemoveButton from "./remove-button";
 
 // Like a file manager: the library shows its folders, then the videos not in one. A folder shows its videos.
@@ -46,7 +47,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
         )}
       </header>
 
-      {!on && names.length > 0 && (
+      {!on && all.length > 0 && (
         <section aria-label="Folders" className="pt-10">
           <ul className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
             {names.map((name, i) => (
@@ -54,8 +55,11 @@ export default async function Library({ searchParams }: { searchParams: Promise<
                 <Folder name={name} sessions={folders.get(name)!} />
               </li>
             ))}
+            <li className="rise" style={{ "--d": `${Math.min(names.length, 8) * 60}ms` } as React.CSSProperties}>
+              <NewFolder videos={all.map((s) => ({ id: s.id, videoId: s.video_id, title: s.title ?? s.video_id, folder: s.folder ?? null }))} />
+            </li>
           </ul>
-          {sessions.length > 0 && <h2 className="mt-16 border-b border-line pb-4 text-xl font-semibold">Not in a folder</h2>}
+          {sessions.length > 0 && names.length > 0 && <h2 className="mt-16 border-b border-line pb-4 text-xl font-semibold">Not in a folder</h2>}
         </section>
       )}
 

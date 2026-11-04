@@ -55,9 +55,10 @@ export async function saveSession(s: NewSession): Promise<Session> {
 }
 
 // Doesn't touch updated_at, so filing a video away doesn't move it to the top of the library.
-export async function setFolder(id: string, folder: string | null) {
-  if (!UUID.test(id)) return;
-  check(await (await supabase()).from("sessions").update({ folder }).eq("id", id));
+export async function setFolder(ids: string[], folder: string | null) {
+  ids = ids.filter((id) => UUID.test(id));
+  if (!ids.length) return;
+  check(await (await supabase()).from("sessions").update({ folder }).in("id", ids));
 }
 
 // Row-level security limits the delete to the caller's own row; someone else's id just deletes nothing.

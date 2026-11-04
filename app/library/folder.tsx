@@ -10,8 +10,8 @@ export default function Folder({ name, sessions }: { name: string; sessions: Ses
   return (
     <Link href={`/library?folder=${encodeURIComponent(name)}`} className="group block">
       <span className="relative block aspect-[4/3] [perspective:900px]">
-        <span aria-hidden className="absolute top-0 left-0 h-[18%] w-[42%] rounded-t-[14px] bg-sun" />
-        <span aria-hidden className="absolute inset-x-0 top-[8%] bottom-0 rounded-panel rounded-tl-none bg-sun" />
+        <span aria-hidden className="absolute top-0 left-0 h-[18%] w-[42%] rounded-t-[14px] bg-[#4d8fd9]" />
+        <span aria-hidden className="absolute inset-x-0 top-[8%] bottom-0 rounded-panel rounded-tl-none bg-[#4d8fd9]" />
         {sessions.slice(0, 3).map((s, i) => (
           <Thumb
             key={s.id}
@@ -19,9 +19,9 @@ export default function Folder({ name, sessions }: { name: string; sessions: Ses
             className={`absolute w-[58%] shadow-[0_4px_12px_rgb(26_33_48/0.2)] transition-transform duration-300 ease-out group-hover:-translate-y-[18%] ${fan[i]}`}
           />
         ))}
-        <span className="absolute inset-x-0 bottom-0 flex h-[60%] origin-bottom flex-col justify-end gap-1 rounded-panel bg-sun-soft p-4 shadow-[0_-2px_0_rgb(255_255_255/0.5)_inset] transition-transform duration-300 ease-out group-hover:[transform:rotateX(-22deg)] sm:p-5">
+        <span className="absolute inset-x-0 bottom-0 flex h-[60%] origin-bottom flex-col justify-end gap-1 rounded-panel bg-sky-2 p-4 shadow-[0_-2px_0_rgb(255_255_255/0.5)_inset] transition-transform duration-300 ease-out group-hover:[transform:rotateX(-22deg)] sm:p-5">
           <span className="truncate text-xl font-semibold">{name}</span>
-          <span className="text-sm text-muted">
+          <span className="text-sm text-ink/70">
             {sessions.length} {sessions.length === 1 ? "video" : "videos"}
             {avg !== null && (
               <>
