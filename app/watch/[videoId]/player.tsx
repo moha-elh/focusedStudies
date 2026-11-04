@@ -77,7 +77,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   const [editing, setEditing] = useState<number | null>(null);
   // The side panel shows notes or, like YouTube's chapter panel, the list of chapters.
   const [panel, setPanel] = useState<"notes" | "chapters">("notes");
-  const [cursorHidden, setCursorHidden] = useState(false);
+  const [idle, setIdle] = useState(false);
   const [skipped, setSkipped] = useState(0);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -194,44 +194,41 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Hide the cursor after 3s still, like on youtube.com. YouTube's embed never does (its control layer keeps
-  // cursor:auto), and our page can't style inside its iframe or put anything over it without blocking its buttons.
-  // So we use pointer lock, which hides the cursor and which Chrome grants without a click while in fullscreen.
-  // The first move, click or scroll releases it, and the cursor reappears where it was.
-  // ponytail: we can't see the mouse moving over YouTube's iframe, so "still" means 3s since it was last released
-  // or YouTube was last clicked; a mouse kept moving for 3s+ blinks out for one frame.
+  // cursor:auto) and our page can't style inside its iframe, so once idle we lay a clear cursor:none layer over it.
+  // The first move or click removes the layer, so YouTube's buttons work again. The wheel over it changes volume.
+  // ponytail: we can't see the mouse moving over YouTube's iframe, so "still" means 3s since the layer was last
+  // removed or YouTube was last clicked; a mouse kept moving for 3s+ blinks out for one frame.
   useEffect(() => {
     if (!full) return;
+    let hidden = false;
+    const hide = (v: boolean) => {
+      hidden = v;
+      setIdle(v);
+    };
     const arm = () => {
       clearTimeout(hideTimer.current);
       hideTimer.current = setTimeout(() => {
-        // Not while paused or with the note panel open (it's inert while closed).
+        // Not while paused or with a panel open (it's inert while closed).
         if (player.current?.getPlayerState?.() !== 1 || !input.current?.closest("[inert]")) return arm();
-        stage.current?.requestPointerLock?.()?.catch?.(() => {});
+        hide(true);
       }, 3000);
     };
     const onActivity = (e: Event) => {
-      if (!document.pointerLockElement) return arm();
-      // Scrolling with the cursor hidden changes volume and keeps it hidden; moving or clicking shows it.
-      if (e instanceof WheelEvent) changeVolume(-e.deltaY / 20);
-      else document.exitPointerLock();
-    };
-    const onLockChange = () => {
-      setCursorHidden(!!document.pointerLockElement);
-      if (!document.pointerLockElement) arm();
+      if (!hidden) return arm();
+      if (e instanceof WheelEvent) return changeVolume(-e.deltaY / 20);
+      hide(false);
+      arm();
     };
     const events = ["mousemove", "mousedown", "wheel"] as const;
     events.forEach((t) => document.addEventListener(t, onActivity, true));
-    document.addEventListener("pointerlockchange", onLockChange);
     window.addEventListener("blur", arm);
     arm();
     centerScroll();
     return () => {
       clearTimeout(hideTimer.current);
       events.forEach((t) => document.removeEventListener(t, onActivity, true));
-      document.removeEventListener("pointerlockchange", onLockChange);
       window.removeEventListener("blur", arm);
-      if (document.pointerLockElement) document.exitPointerLock();
-      setCursorHidden(false);
+      setIdle(false);
     };
     // changeVolume only touches refs and state setters, so a stale copy behaves the same.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -527,18 +524,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
               <div ref={host} className={full ? "sticky top-0 h-full" : "absolute inset-0"} />
               {full && <div aria-hidden className="h-[200%]" />}
             </div>
-            {full && chapters.length > 1 && !open && !cursorHidden && (
-              // YouTube's own chapter label can't be clicked inside an embed, so this one opens the list.
-              // It hides with the cursor and covers only itself, so YouTube's buttons stay clickable.
-              <button
-                onClick={openChapters}
-                title="Chapters (Alt+C)"
-                className="absolute top-4 left-1/2 flex max-w-[min(420px,60%)] -translate-x-1/2 items-center gap-2 rounded-full bg-paper px-4 py-2 text-sm transition-colors hover:bg-line"
-              >
-                <span className="truncate">{chapters[currentChapter]?.title}</span>
-                <span aria-hidden>›</span>
-              </button>
-            )}
+            {full && idle && !open && <div aria-hidden className="absolute inset-0 cursor-none" />}
             {hud !== null && (
               <span role="status" className="pointer-events-none absolute top-20 left-1/2 -translate-x-1/2 rounded-full bg-paper px-4 py-2 text-sm tabular-nums">
                 {hud}
