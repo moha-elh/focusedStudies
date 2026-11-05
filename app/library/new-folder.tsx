@@ -4,6 +4,7 @@ import { useId } from "react";
 import { useFormStatus } from "react-dom";
 import { Spinner, Thumb } from "../ui";
 import { createFolder } from "./actions";
+import { FOLDER_COLORS, type FolderColor } from "./colors";
 
 type Video = {
   id: string;
@@ -49,6 +50,19 @@ export default function NewFolder({ videos }: { videos: Video[] }) {
             placeholder="Folder name"
             className="min-h-12 rounded-full border border-line bg-white px-4 outline-none placeholder:text-muted focus:border-ink"
           />
+          <fieldset className="flex flex-wrap items-center gap-3">
+            <legend className="mb-2 text-sm text-muted">Color</legend>
+            {(Object.keys(FOLDER_COLORS) as FolderColor[]).map((c, i) => (
+              <label key={c} title={c[0].toUpperCase() + c.slice(1)} className="cursor-pointer">
+                <input type="radio" name="color" value={c} defaultChecked={i === 0} aria-label={c} className="peer sr-only" />
+                <span
+                  aria-hidden
+                  style={{ background: FOLDER_COLORS[c][0] }}
+                  className="block size-7 rounded-full ring-ink ring-offset-2 ring-offset-canvas transition-transform peer-checked:ring-2 peer-focus-visible:outline-2 hover:scale-110"
+                />
+              </label>
+            ))}
+          </fieldset>
           {videos.length > 0 && (
             <fieldset className="flex min-h-0 flex-col gap-2">
               <legend className="mb-2 text-sm text-muted">Put videos in it now (optional)</legend>
