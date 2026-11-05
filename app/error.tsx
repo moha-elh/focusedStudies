@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { track } from "./track";
 
 // Shown when a page fails to load (e.g. the database or YouTube is unreachable). Styled like the 404 page.
-export default function Error({ retry }: { error: Error & { digest?: string }; retry: () => void }) {
+export default function Error({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+  // Shows up under Issues on /admin. In production the message is generic; the digest matches the server log.
+  useEffect(() => track("client_error", error.digest ? `${error.message} (digest ${error.digest})` : error.message), [error]);
   return (
     <main className="wrap">
       <section className="flex min-h-[520px] flex-col items-center justify-center rounded-[32px] bg-sun-soft px-6 py-20 text-center">

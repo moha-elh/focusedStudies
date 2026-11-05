@@ -4,6 +4,7 @@ import { useId } from "react";
 import { useFormStatus } from "react-dom";
 import { Spinner, Thumb } from "../ui";
 import { createFolder } from "./actions";
+import { ColorChoice } from "./color-wheel";
 
 type Video = {
   id: string;
@@ -49,6 +50,7 @@ export default function NewFolder({ videos }: { videos: Video[] }) {
             placeholder="Folder name"
             className="min-h-12 rounded-full border border-line bg-white px-4 outline-none placeholder:text-muted focus:border-ink"
           />
+          <ColorChoice />
           {videos.length > 0 && (
             <fieldset className="flex min-h-0 flex-col gap-2">
               <legend className="mb-2 text-sm text-muted">Put videos in it now (optional)</legend>

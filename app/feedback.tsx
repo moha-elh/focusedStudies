@@ -22,7 +22,7 @@ export default function Feedback({ action }: { action: Action }) {
     <>
       <button
         popoverTarget="feedback"
-        className="fixed right-4 bottom-4 z-20 rounded-full bg-night px-4 py-2.5 text-sm font-semibold text-night-ink shadow-[0_8px_24px_rgb(26_33_48/0.25)] transition-colors hover:bg-night-2"
+        className="fixed right-4 bottom-4 z-20 rounded-full bg-night px-4 py-2.5 text-sm font-semibold text-night-ink shadow-[0_8px_24px_rgb(26_33_48/0.25)] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgb(26_33_48/0.32)] active:translate-y-0 motion-reduce:transform-none"
       >
         Feedback
       </button>
