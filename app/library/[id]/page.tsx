@@ -4,7 +4,7 @@ import type { Feedback, FeedbackPoint } from "@/app/api/review/route";
 import { getSession, type Note } from "@/lib/db";
 import { toMarkdown, toPoint } from "@/lib/export";
 import { fmtTime } from "@/lib/youtube";
-import { ScoreRing, scoreColor, Thumb } from "../../ui";
+import { BackToLibrary, ScoreRing, scoreColor, Thumb } from "../../ui";
 import RemoveButton from "../remove-button";
 import CopyButton from "./copy-button";
 
@@ -89,7 +89,7 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
 
   return (
     <main className="wrap flex flex-col pt-4">
-      <Link href="/library" className="rise mb-6 w-fit text-sm text-muted transition-colors hover:text-ink">← Library</Link>
+      <BackToLibrary className="rise mb-6" />
 
       <header className="rise mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between [--d:80ms]">
         <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:items-end">
