@@ -31,8 +31,9 @@ Paste a YouTube link, watch it with no distractions, then explain what you learn
    - Security check: `node --env-file=.env.local --experimental-strip-types scripts/check-rls.ts` (signed-out access must be blocked).
 
 ### Test locally (no Google sign-in, no production data)
-Needs Docker running. `npm run dev:local` starts Supabase on your machine (same tables and row-level security, built from `supabase/migrations`, filled with `supabase/seed.sql`) and the app on http://localhost:3000. Use `-- -p 3001` to run it next to a normal `npm run dev`.
-- Sign in with **Sign in as test user** on the login page (`test@focuslearn.dev` / `focuslearn`). It only appears with a local Supabase.
+Needs Docker running. `npm run dev` starts Supabase on your machine (same tables and row-level security, built from `supabase/migrations`, filled with `supabase/seed.sql`) and the app on http://localhost:3000. It never touches the production database.
+- You're signed in automatically as the test user (`test@focuslearn.dev` / `focuslearn`), who is also an admin. Sign out to see the signed-out pages; **Sign in as test user** on the login page signs you back in.
+- `npm run dev:prod` runs the app against the Supabase in `.env.local` (production) instead, with Google/GitHub sign-in. Add `-- -p 3001` to run both at once.
 - `npm run db:reset` wipes the local database and reapplies the migrations and seed data. `npm run db:stop` stops it.
 - Local database dashboard: http://127.0.0.1:54323
 
@@ -45,7 +46,7 @@ Page views come from a random visitor-id cookie (no names or emails), and visito
 Never edit an old migration or run SQL in the production dashboard. Add a new file instead: `npx supabase migration new <name>`, write SQL that only adds things (`add column if not exists`, new tables), and test it with `npm run db:reset`.
 
 ### Branches
-`main` is the live app, `dev` is the test stage, `local` is where work happens. `feat/*`, `fix/*`, `style/*` branches → merged into `local` (tested with `npm run dev:local`) → `dev` (tested before release) → `main` (production). Before deploying a `main` that has new migrations, apply them to production: `npx supabase link` (once), then `npx supabase db push`. It only runs the migrations production hasn't had yet; since they only add things, the live app keeps working while it runs.
+`main` is the live app, `dev` is the test stage, `local` is where work happens. `feat/*`, `fix/*`, `style/*` branches → merged into `local` (tested with `npm run dev`) → `dev` (tested before release) → `main` (production). Before deploying a `main` that has new migrations, apply them to production: `npx supabase link` (once), then `npx supabase db push`. It only runs the migrations production hasn't had yet; since they only add things, the live app keeps working while it runs.
 
 Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimental-strip-types lib/export.test.ts && node --experimental-strip-types lib/safe-next.test.ts`
 

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { LOCAL_SUPABASE, STAY_SIGNED_OUT, TEST_USER } from "@/lib/supabase";
 
 // Pages anyone can open. Everything else needs a signed-in user.
 const PUBLIC = ["/", "/login", "/auth/callback", "/privacy", "/api/event"];
@@ -18,7 +19,12 @@ export async function proxy(req: NextRequest) {
       },
     },
   });
-  const { data } = await sb.auth.getClaims();
+  let { data } = await sb.auth.getClaims();
+  // Local only: sign in as the test user without a login page. Real Supabase sign-in, so row-level security still applies.
+  if (!data?.claims && LOCAL_SUPABASE && !req.cookies.has(STAY_SIGNED_OUT)) {
+    await sb.auth.signInWithPassword(TEST_USER);
+    ({ data } = await sb.auth.getClaims());
+  }
   const path = req.nextUrl.pathname;
   if (data?.claims || PUBLIC.includes(path)) return res;
 

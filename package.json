@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "supabase start && node scripts/dev-local.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "dev:local": "supabase start && node scripts/dev-local.mjs",
     "db:reset": "supabase db reset",
-    "db:stop": "supabase stop"
+    "db:stop": "supabase stop",
+    "dev:prod": "next dev"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
