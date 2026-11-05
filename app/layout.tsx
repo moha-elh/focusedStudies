@@ -4,8 +4,10 @@ import { Bricolage_Grotesque } from "next/font/google";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DESCRIPTION, SITE } from "@/lib/site";
-import { currentUser, supabase } from "@/lib/supabase";
+import { cookies } from "next/headers";
+import { currentUser, LOCAL_SUPABASE, STAY_SIGNED_OUT, supabase } from "@/lib/supabase";
 import Feedback from "./feedback";
+import Track from "./track";
 import NavLinks, { PasteButton, SectionLink } from "./nav-links";
 import { LINKS, Mark } from "./ui";
 import "./globals.css";
@@ -49,6 +51,7 @@ async function sendFeedback(_prev: "sent" | "error" | null, formData: FormData) 
 async function signOut() {
   "use server";
   await (await supabase()).auth.signOut();
+  if (LOCAL_SUPABASE) (await cookies()).set(STAY_SIGNED_OUT, "1", { path: "/" });
   redirect("/");
 }
 
@@ -59,6 +62,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     // ignore those. This only covers these two tags, so real mismatches inside the app are still reported.
     <html lang="en" className={`${bricolage.variable} h-full antialiased`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className="flex min-h-full flex-col font-sans text-base" suppressHydrationWarning>
+        <Track />
         {/* Fixed height so the home hero can slide underneath it (see -mt-21 there). */}
         <header className="wrap relative z-10 flex h-21 items-center justify-between gap-4">
           <Link href="/" className="text-xl font-semibold">
@@ -70,7 +74,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             {/* Kept smaller than the play button so it does not compete with it. */}
             {user ? (
               <form action={signOut}>
-                <button className="inline-flex min-h-9 items-center rounded-full bg-paper px-4 text-sm font-semibold shadow-[0_2px_8px_rgb(26_33_48/0.08)] transition-colors hover:bg-sky">
+                <button className="inline-flex min-h-9 items-center rounded-full bg-paper px-4 text-sm font-semibold shadow-[0_2px_8px_rgb(26_33_48/0.08)] transition-colors duration-200 hover:bg-ink hover:text-paper">
                   Sign out
                 </button>
               </form>

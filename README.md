@@ -21,7 +21,7 @@ Paste a YouTube link, watch it with no distractions, then explain what you learn
 2. `npm run dev` → http://localhost:3000
 3. Optional: create `.env.local` with `GROQ_API_KEY=...` (console.groq.com, free tier) or `ANTHROPIC_API_KEY=...` for real grading; Groq wins if both are set. Without it, you get clearly labelled demo feedback.
 4. Supabase (accounts + database), needed to sign in and save:
-   - Create a project, then run `supabase/schema.sql` in its SQL Editor.
+   - Create a project, then `npx supabase link` and `npx supabase db push` (applies `supabase/migrations`).
    - Put the Project URL (bare, `https://<ref>.supabase.co`), the publishable key and the secret key in `.env.local` (see `.env.example`).
    - Authentication → URL Configuration: Site URL `http://localhost:3000`, and add `http://localhost:3000/**` to Redirect URLs (the `/**` also matches the `?next=` part; without it Supabase falls back to the Site URL).
    - Sign-in providers (Authentication → Sign In / Providers), both free. Each asks for an authorized callback URL: use the one Supabase shows, `https://<ref>.supabase.co/auth/v1/callback`.
@@ -30,13 +30,31 @@ Paste a YouTube link, watch it with no distractions, then explain what you learn
    - Sessions saved before accounts existed: sign in once, then `node --env-file=.env.local --experimental-strip-types scripts/claim-sessions.ts you@example.com`
    - Security check: `node --env-file=.env.local --experimental-strip-types scripts/check-rls.ts` (signed-out access must be blocked).
 
+### Test locally (no Google sign-in, no production data)
+Needs Docker running. `npm run dev` starts Supabase on your machine (same tables and row-level security, built from `supabase/migrations`, filled with `supabase/seed.sql`) and the app on http://localhost:3000. It never touches the production database.
+- You're signed in automatically as the test user (`test@focuslearn.dev` / `focuslearn`), who is also an admin. Sign out to see the signed-out pages; **Sign in as test user** on the login page signs you back in.
+- `npm run dev:prod` runs the app against the Supabase in `.env.local` (production) instead, with Google/GitHub sign-in. Add `-- -p 3001` to run both at once.
+- `npm run db:reset` wipes the local database and reapplies the migrations and seed data. `npm run db:stop` stops it.
+- Local database dashboard: http://127.0.0.1:54323
+
+### Admin dashboard
+`/admin` shows users, traffic, the sign-up → recap funnel, scores, top pages and videos, errors and feedback. Locally the test user is an admin. In production, sign in once, then run this in the SQL Editor (only the database can make an admin, and the stats function refuses everyone else):
+`insert into public.admins (user_id) select id from auth.users where email = 'you@example.com';`
+Page views come from a random visitor-id cookie (no names or emails), and visitors who send Global Privacy Control aren't counted.
+
+### Changing the database
+Never edit an old migration or run SQL in the production dashboard. Add a new file instead: `npx supabase migration new <name>`, write SQL that only adds things (`add column if not exists`, new tables), and test it with `npm run db:reset`.
+
+### Branches
+`main` is the live app, `dev` is the test stage, `local` is where work happens. `feat/*`, `fix/*`, `style/*` branches → merged into `local` (tested with `npm run dev`) → `dev` (tested before release) → `main` (production). Before deploying a `main` that has new migrations, apply them to production: `npx supabase link` (once), then `npx supabase db push`. It only runs the migrations production hasn't had yet; since they only add things, the live app keeps working while it runs.
+
 Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimental-strip-types lib/export.test.ts && node --experimental-strip-types lib/safe-next.test.ts`
 
 ### Deploy (Vercel)
 1. Push to GitHub, then on vercel.com: Add New → Project → import this repo. Framework: Next.js (detected); no build settings to change.
 2. Environment variables (Project → Settings → Environment Variables): `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`. The secret key is not needed in production.
 3. Supabase → Authentication → URL Configuration: set Site URL to your Vercel URL (e.g. `https://focuslearn.vercel.app`) and add `https://<your-url>/**` to Redirect URLs. Keep the localhost entry for local dev.
-4. Run `supabase/schema.sql` again in the SQL Editor (adds the `feedback` table). Feedback from the in-app button lands in Table Editor → `feedback`.
+4. Apply new migrations with `npx supabase db push` before each deploy that has them. Feedback from the in-app button lands in Table Editor → `feedback`.
 5. Google/GitHub sign-in needs nothing more for production: the providers call back to Supabase's URL, which doesn't change.
 6. After deploying, set `FOCUSLEARN` in `extension/shared.js` to your Vercel URL and reload the extension.
 
