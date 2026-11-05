@@ -8,9 +8,12 @@ import NewFolder from "./new-folder";
 import { recolorFolder } from "./actions";
 import { FOLDER_COLORS, type FolderColor } from "./colors";
 import RemoveButton from "./remove-button";
+import { DragRow, DropTarget } from "./drag";
+import type { Session } from "@/lib/db";
 
 // Like a file manager: the library shows its top-level folders, then the videos not in one. A folder shows the
-// folders inside it, then its videos.
+// folders inside it, then its own videos; its tile and totals count everything inside it, subfolders included.
+// Drag a video onto a folder to move it in, or onto the back link to move it up a level.
 export default async function Library({ searchParams }: { searchParams: Promise<{ folder?: string }> }) {
   const [all, rows] = await Promise.all([listSessions(), listFolders()]);
   const colors = new Map(rows.map((f) => [f.name, f.color]));
@@ -28,11 +31,13 @@ export default async function Library({ searchParams }: { searchParams: Promise<
     for (let p = parents.get(name); p && parts.length < 20; p = parents.get(p)) parts.unshift(p);
     return parts.join(" / ");
   };
+  // A folder's videos and those of every folder inside it.
+  const deep = (name: string): Session[] => [...folders.get(name)!, ...inside(name).flatMap(deep)];
   // An unknown folder (its last video moved out) shows the library.
   const want = (await searchParams).folder;
   const on = want && folders.has(want) ? want : null;
-  const inView = on ? folders.get(on)! : all;
-  const sessions = on ? inView : all.filter((s) => !s.folder);
+  const inView = on ? deep(on) : all;
+  const sessions = on ? folders.get(on)! : all.filter((s) => !s.folder);
   const avg = avgScore(inView);
   const shown = inside(on);
   const up = on ? (parents.get(on) ?? null) : null;
@@ -42,7 +47,10 @@ export default async function Library({ searchParams }: { searchParams: Promise<
       <header className="rise flex flex-wrap items-end justify-between gap-6 border-b-2 border-ink pb-8">
         <div className="min-w-0">
           {on ? (
-            <BackToLibrary className="mb-6" {...(up && { href: `/library?folder=${encodeURIComponent(up)}`, label: `Back to ${up}` })} />
+            // Dropping a video here moves it up a level (out of every folder at the top).
+            <DropTarget folder={up} className="mb-6 w-fit rounded-full">
+              <BackToLibrary {...(up && { href: `/library?folder=${encodeURIComponent(up)}`, label: `Back to ${up}` })} />
+            </DropTarget>
           ) : (
             <Label className="mb-4">Library</Label>
           )}
@@ -90,7 +98,9 @@ export default async function Library({ searchParams }: { searchParams: Promise<
           <ul className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
             {shown.map((name, i) => (
               <li key={name} className="rise" style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}>
-                <Folder name={name} sessions={folders.get(name)!} color={colors.get(name)} subfolders={inside(name).length} />
+                <DropTarget folder={name}>
+                  <Folder name={name} sessions={deep(name)} color={colors.get(name)} subfolders={inside(name).length} />
+                </DropTarget>
               </li>
             ))}
             <li className="rise" style={{ "--d": `${Math.min(shown.length, 8) * 60}ms` } as React.CSSProperties}>
@@ -100,8 +110,13 @@ export default async function Library({ searchParams }: { searchParams: Promise<
               />
             </li>
           </ul>
-          {sessions.length > 0 && shown.length > 0 && (
-            <h2 className="mt-16 border-b border-line pb-4 text-xl font-semibold">{on ? "Videos" : "Not in a folder"}</h2>
+          {sessions.length > 0 && (shown.length > 0 || on) && (
+            <div className="mt-16 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-line pb-4">
+              <h2 className="text-xl font-semibold">{on ? "Videos" : "Not in a folder"}</h2>
+              <p className="text-sm text-muted">
+                {on ? `Drag a video onto a folder to move it in, or onto “${up ? `Back to ${up}` : "Back to library"}” to move it out.` : "Drag a video onto a folder to move it in."}
+              </p>
+            </div>
           )}
         </section>
       )}
@@ -129,9 +144,10 @@ export default async function Library({ searchParams }: { searchParams: Promise<
           {sessions.map((s, i) => {
             const score = scoreOf(s.feedback);
             return (
-              <li
+              <DragRow
                 key={s.id}
-                className="rise group/row flex items-center border-b border-line"
+                id={s.id}
+                className="rise group/row flex cursor-grab items-center border-b border-line active:cursor-grabbing"
                 style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}
               >
                 {/* No recap yet means there's nothing to review, so go straight back to the video. */}
@@ -166,7 +182,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
                   title={s.title ?? s.video_id}
                   className="grid size-11 shrink-0 place-items-center rounded-full text-muted transition-[opacity,color,background-color] hover:bg-bad-soft hover:text-bad focus:opacity-100 pointer-fine:opacity-0 group-hover/row:opacity-100"
                 />
-              </li>
+              </DragRow>
             );
           })}
         </ul>
