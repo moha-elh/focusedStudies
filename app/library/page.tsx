@@ -9,28 +9,43 @@ import { recolorFolder } from "./actions";
 import { FOLDER_COLORS, type FolderColor } from "./colors";
 import RemoveButton from "./remove-button";
 
-// Like a file manager: the library shows its folders, then the videos not in one. A folder shows its videos.
+// Like a file manager: the library shows its top-level folders, then the videos not in one. A folder shows the
+// folders inside it, then its videos.
 export default async function Library({ searchParams }: { searchParams: Promise<{ folder?: string }> }) {
   const [all, rows] = await Promise.all([listSessions(), listFolders()]);
   const colors = new Map(rows.map((f) => [f.name, f.color]));
+  const parents = new Map(rows.map((f) => [f.name, f.parent]));
   const folders = Map.groupBy(
     all.filter((s) => s.folder),
     (s) => s.folder!,
   );
   for (const { name } of rows) if (!folders.has(name)) folders.set(name, []);
   const names = [...folders.keys()].sort((a, b) => a.localeCompare(b));
+  const inside = (parent: string | null) => names.filter((n) => (parents.get(n) ?? null) === parent);
+  // "Courses / Python": the way down to a folder. The depth cap only guards against bad data.
+  const path = (name: string) => {
+    const parts = [name];
+    for (let p = parents.get(name); p && parts.length < 20; p = parents.get(p)) parts.unshift(p);
+    return parts.join(" / ");
+  };
   // An unknown folder (its last video moved out) shows the library.
   const want = (await searchParams).folder;
   const on = want && folders.has(want) ? want : null;
   const inView = on ? folders.get(on)! : all;
   const sessions = on ? inView : all.filter((s) => !s.folder);
   const avg = avgScore(inView);
+  const shown = inside(on);
+  const up = on ? (parents.get(on) ?? null) : null;
 
   return (
     <main className="wrap flex flex-col pt-10">
       <header className="rise flex flex-wrap items-end justify-between gap-6 border-b-2 border-ink pb-8">
         <div className="min-w-0">
-          {on ? <BackToLibrary className="mb-6" /> : <Label className="mb-4">Library</Label>}
+          {on ? (
+            <BackToLibrary className="mb-6" {...(up && { href: `/library?folder=${encodeURIComponent(up)}`, label: `Back to ${up}` })} />
+          ) : (
+            <Label className="mb-4">Library</Label>
+          )}
           <h1 className="text-h1 font-semibold break-words sm:text-hero">{on ?? "Everything you’ve learned."}</h1>
           {on && (
             // Plain buttons in a form: picking a color saves it, no script needed.
@@ -70,24 +85,31 @@ export default async function Library({ searchParams }: { searchParams: Promise<
         )}
       </header>
 
-      {!on && (all.length > 0 || names.length > 0) && (
+      {(on || all.length > 0 || names.length > 0) && (
         <section aria-label="Folders" className="pt-10">
           <ul className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
-            {names.map((name, i) => (
+            {shown.map((name, i) => (
               <li key={name} className="rise" style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}>
-                <Folder name={name} sessions={folders.get(name)!} color={colors.get(name)} />
+                <Folder name={name} sessions={folders.get(name)!} color={colors.get(name)} subfolders={inside(name).length} />
               </li>
             ))}
-            <li className="rise" style={{ "--d": `${Math.min(names.length, 8) * 60}ms` } as React.CSSProperties}>
-              <NewFolder videos={all.map((s) => ({ id: s.id, videoId: s.video_id, title: s.title ?? s.video_id, folder: s.folder ?? null }))} />
+            <li className="rise" style={{ "--d": `${Math.min(shown.length, 8) * 60}ms` } as React.CSSProperties}>
+              <NewFolder
+                parent={on ?? undefined}
+                videos={all.map((s) => ({ id: s.id, videoId: s.video_id, title: s.title ?? s.video_id, folder: s.folder ? path(s.folder) : null }))}
+              />
             </li>
           </ul>
-          {sessions.length > 0 && names.length > 0 && <h2 className="mt-16 border-b border-line pb-4 text-xl font-semibold">Not in a folder</h2>}
+          {sessions.length > 0 && shown.length > 0 && (
+            <h2 className="mt-16 border-b border-line pb-4 text-xl font-semibold">{on ? "Videos" : "Not in a folder"}</h2>
+          )}
         </section>
       )}
 
       {on && !sessions.length ? (
-        <p className="rise py-10 leading-normal text-muted">This folder is empty. Use the folder button on any video in your library to move it here.</p>
+        <p className="rise py-10 leading-normal text-muted">
+          {shown.length ? "No videos directly in this folder." : "This folder is empty."} Use the folder button on any video to move it here.
+        </p>
       ) : !all.length && !names.length ? (
         <section className="rise relative mt-8 overflow-hidden rounded-[32px] bg-[#4d8fd9] [--d:150ms]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -135,7 +157,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
                 <FolderButton
                   id={s.id}
                   folder={s.folder ?? null}
-                  folders={names}
+                  folders={names.map((n): [string, string] => [n, path(n)])}
                   className="grid size-11 shrink-0 place-items-center rounded-full text-muted transition-[opacity,color,background-color] hover:bg-line hover:text-ink focus:opacity-100 pointer-fine:opacity-0 group-hover/row:opacity-100"
                 />
                 <RemoveButton

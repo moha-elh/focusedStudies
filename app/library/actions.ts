@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { addFolder, deleteSession, setFolder, setFolderColor } from "@/lib/db";
 import { pickedColor } from "./colors";
 
-const folderName = (form: FormData) => String(form.get("folder") ?? "").trim().replace(/\s+/g, " ").slice(0, 40) || null;
+const clean = (v: FormDataEntryValue | null) => String(v ?? "").trim().replace(/\s+/g, " ").slice(0, 40) || null;
+const folderName = (form: FormData) => clean(form.get("folder"));
 
 // An empty name takes the video out of its folder.
 export async function moveSession(id: string, form: FormData) {
@@ -20,7 +21,9 @@ export async function moveSession(id: string, form: FormData) {
 export async function createFolder(form: FormData) {
   const name = folderName(form);
   if (!name) return;
-  await addFolder(name, pickedColor(form));
+  const parent = clean(form.get("parent"));
+  if (parent && parent !== name) await addFolder(parent); // its row may not exist yet if it only lived on videos
+  await addFolder(name, pickedColor(form), parent !== name ? parent : null);
   await setFolder(form.getAll("ids").map(String).slice(0, 500), name);
   revalidatePath("/library");
 }

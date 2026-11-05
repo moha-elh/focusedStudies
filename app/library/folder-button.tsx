@@ -7,7 +7,8 @@ import { moveSession } from "./actions";
 import { ColorChoice } from "./color-wheel";
 
 // Files a video into a folder: pick an existing one, type a new name, or take it out. Same native popover as RemoveButton.
-export default function FolderButton({ id, folder, folders, className }: { id: string; folder: string | null; folders: string[]; className?: string }) {
+// `folders` is [name, path] pairs; the path ("Courses / Python") tells nested folders apart.
+export default function FolderButton({ id, folder, folders, className }: { id: string; folder: string | null; folders: [string, string][]; className?: string }) {
   const dialog = useId();
   const action = moveSession.bind(null, id);
   const close = () => document.getElementById(dialog)?.hidePopover();
@@ -30,15 +31,15 @@ export default function FolderButton({ id, folder, folders, className }: { id: s
           <h2 id={`${dialog}-title`} className="text-2xl font-semibold">Move to folder</h2>
           {folders.length > 0 && (
             <ul className="flex flex-wrap gap-2">
-              {folders.map((f) => (
-                <li key={f}>
+              {folders.map(([f, path]) => (
+                <li key={f} className="max-w-full">
                   <form action={action} onSubmit={close}>
                     <input type="hidden" name="folder" value={f} />
                     <button
                       disabled={f === folder}
                       className="max-w-full truncate rounded-full bg-paper px-4 py-2 text-sm transition-colors hover:bg-line disabled:bg-ink disabled:text-paper"
                     >
-                      {f}
+                      {path}
                     </button>
                   </form>
                 </li>
