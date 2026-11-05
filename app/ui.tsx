@@ -1,5 +1,7 @@
 // Small presentational pieces shared by server and client components.
 
+import Link from "next/link";
+
 // [label, page, section on that page]. Section links scroll there without putting a #fragment in the URL.
 export const LINKS: [string, string, string?][] = [
   ["Watch", "/"],
@@ -69,4 +71,21 @@ export function Thumb({ videoId, className = "" }: { videoId: string; className?
 
 export function Spinner() {
   return <span aria-hidden className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />;
+}
+
+// "Back to library": a pill with the arrow in its own circle, which slides back a little on hover.
+export function BackToLibrary({ className = "" }: { className?: string }) {
+  return (
+    <Link
+      href="/library"
+      className={`group inline-flex w-fit items-center gap-3 rounded-full bg-paper py-1.5 pr-5 pl-1.5 text-sm font-semibold shadow-[0_2px_8px_rgb(26_33_48/0.08)] transition-colors duration-200 hover:bg-ink hover:text-paper ${className}`}
+    >
+      <span aria-hidden className="grid size-8 place-items-center rounded-full bg-canvas text-ink transition-transform duration-200 group-hover:-translate-x-0.5">
+        <svg viewBox="0 0 16 16" className="size-4">
+          <path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+      Back to library
+    </Link>
+  );
 }

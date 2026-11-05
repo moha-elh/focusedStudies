@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listFolders, listSessions } from "@/lib/db";
-import { avgScore, Label, scoreColor, scoreOf, Thumb } from "../ui";
+import { avgScore, BackToLibrary, Label, scoreColor, scoreOf, Thumb } from "../ui";
 import Folder from "./folder";
 import FolderButton from "./folder-button";
 import NewFolder from "./new-folder";
@@ -27,9 +27,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
       <header className="rise flex flex-wrap items-end justify-between gap-6 border-b-2 border-ink pb-8">
         <div className="min-w-0">
           {on ? (
-            <Link href="/library" className="mb-4 flex w-fit items-center gap-2.5 text-sm text-muted transition-colors hover:text-ink">
-              <span aria-hidden>←</span> Library
-            </Link>
+            <BackToLibrary className="mb-6" />
           ) : (
             <Label className="mb-4">Library</Label>
           )}
