@@ -4,13 +4,16 @@ import { avgScore, Label, scoreColor, scoreOf, Thumb } from "../ui";
 import Folder from "./folder";
 import FolderButton from "./folder-button";
 import NewFolder from "./new-folder";
+import { recolorFolder } from "./actions";
+import { FOLDER_COLORS, type FolderColor } from "./colors";
 import RemoveButton from "./remove-button";
 
 // Like a file manager: the library shows its folders, then the videos not in one. A folder shows its videos.
 export default async function Library({ searchParams }: { searchParams: Promise<{ folder?: string }> }) {
-  const [all, empty] = await Promise.all([listSessions(), listFolders()]);
+  const [all, rows] = await Promise.all([listSessions(), listFolders()]);
+  const colors = new Map(rows.map((f) => [f.name, f.color]));
   const folders = Map.groupBy(all.filter((s) => s.folder), (s) => s.folder!);
-  for (const name of empty) if (!folders.has(name)) folders.set(name, []);
+  for (const { name } of rows) if (!folders.has(name)) folders.set(name, []);
   const names = [...folders.keys()].sort((a, b) => a.localeCompare(b));
   // An unknown folder (its last video moved out) shows the library.
   const want = (await searchParams).folder;
@@ -31,6 +34,24 @@ export default async function Library({ searchParams }: { searchParams: Promise<
             <Label className="mb-4">Library</Label>
           )}
           <h1 className="text-h1 font-semibold break-words sm:text-hero">{on ?? "Everything you’ve learned."}</h1>
+          {on && (
+            // Plain buttons in a form: picking a color saves it, no script needed.
+            <form action={recolorFolder.bind(null, on)} className="mt-6 flex flex-wrap items-center gap-3">
+              <span className="text-sm text-muted">Folder color</span>
+              {(Object.keys(FOLDER_COLORS) as FolderColor[]).map((c) => (
+                <button
+                  key={c}
+                  name="color"
+                  value={c}
+                  aria-label={c}
+                  title={c[0].toUpperCase() + c.slice(1)}
+                  aria-pressed={(colors.get(on) ?? "blue") === c}
+                  style={{ background: FOLDER_COLORS[c][0] }}
+                  className="size-7 rounded-full ring-ink ring-offset-2 ring-offset-canvas transition-transform hover:scale-110 aria-pressed:ring-2"
+                />
+              ))}
+            </form>
+          )}
         </div>
         {inView.length > 0 && (
           <dl className="flex gap-12">
@@ -53,7 +74,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
           <ul className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
             {names.map((name, i) => (
               <li key={name} className="rise" style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}>
-                <Folder name={name} sessions={folders.get(name)!} />
+                <Folder name={name} sessions={folders.get(name)!} color={colors.get(name)} />
               </li>
             ))}
             <li className="rise" style={{ "--d": `${Math.min(names.length, 8) * 60}ms` } as React.CSSProperties}>

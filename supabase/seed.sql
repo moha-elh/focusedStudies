@@ -29,10 +29,10 @@ insert into public.sessions (user_id, video_id, title, recap, feedback, notes, f
   ('11111111-1111-4111-8111-111111111111', 'rfscVS0vtbw', 'Learn Python - Full Course for Beginners', '', null,
    '[{"t":42,"text":"print() shows output"},{"t":1310,"text":"Lists are zero-indexed"}]', null, now() - interval '1 day', now() - interval '2 hours');
 
-insert into public.folders (user_id, name) values
-  ('11111111-1111-4111-8111-111111111111', 'Machine learning'),
-  ('11111111-1111-4111-8111-111111111111', 'Math'),
-  ('11111111-1111-4111-8111-111111111111', 'Reading list');
+insert into public.folders (user_id, name, color) values
+  ('11111111-1111-4111-8111-111111111111', 'Machine learning', null),
+  ('11111111-1111-4111-8111-111111111111', 'Math', 'purple'),
+  ('11111111-1111-4111-8111-111111111111', 'Reading list', 'orange');
 
 -- The test user is an admin locally, so /admin works. In production, add yourself with the insert in the migration.
 insert into public.admins (user_id) values ('11111111-1111-4111-8111-111111111111');
