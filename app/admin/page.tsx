@@ -35,20 +35,29 @@ type Stats = {
 type User = { email: string | null; joined: string; provider: string; active: string | null; videos: number; score: number | null };
 type Note = { id: string; message: string; page: string | null; at: string; signed_in: boolean; handled_at: string | null };
 type More = {
-  prev: { visitors: number; users_new: number; active: number; recaps: number; avg_score: number | null };
+  prev: {
+    visitors: number;
+    users_new: number;
+    active: number;
+    recaps: number;
+    avg_score: number | null;
+    // Added in a later migration; missing until it's applied.
+    views?: number;
+    videos_opened?: number;
+    grading_errors?: number;
+  };
   users: User[];
   feedback: Note[];
 };
 
 const RANGES = [7, 30, 90];
-// Section, menu label, page title.
 const TABS = [
-  ["overview", "Overview", "How FocusLearn is doing"],
-  ["users", "Users", "Who uses FocusLearn"],
-  ["traffic", "Traffic", "Where visits come from"],
-  ["content", "Content", "What people watch"],
-  ["issues", "Issues", "What went wrong"],
-  ["feedback", "Feedback", "What people asked for"],
+  ["overview", "Overview"],
+  ["users", "Users"],
+  ["traffic", "Traffic"],
+  ["content", "Content"],
+  ["issues", "Issues"],
+  ["feedback", "Feedback"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 type Query = { days?: string; tab?: string; sort?: string; show?: string };
@@ -86,49 +95,45 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Qu
   const open = m.feedback.filter((f) => !f.handled_at).length;
 
   return (
-    <main className="wrap grid gap-8 pt-10 pb-24 lg:grid-cols-[208px_minmax(0,1fr)]">
-      {/* The menu: a column on wide screens, a scrolling row above the page on narrow ones. */}
-      <aside className="lg:sticky lg:top-6 lg:self-start">
-        <nav aria-label="Sections" className="flex gap-1 overflow-x-auto rounded-panel bg-paper p-2 lg:flex-col">
-          <p className="hidden px-4 pt-2 pb-3 text-sm text-muted lg:block">Admin</p>
-          {TABS.map(([t, label]) => (
+    <main className="wrap flex flex-col pt-10 pb-24">
+      <header className="rise flex flex-wrap items-end justify-between gap-6">
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-muted">
+            Admin · {day(s.since)} to today
+          </p>
+          <h1 className="text-display font-semibold">How FocusLearn is doing</h1>
+        </div>
+        <nav aria-label="Period" className="flex rounded-full bg-panel p-1">
+          {RANGES.map((r) => (
             <Link
-              key={t}
-              href={href({ tab: t, sort: "", show: "" })}
-              aria-current={t === tab ? "page" : undefined}
-              className="flex shrink-0 items-center justify-between gap-3 rounded-media px-4 py-2.5 text-muted transition-colors hover:bg-canvas hover:text-ink aria-[current]:bg-ink aria-[current]:text-paper"
+              key={r}
+              href={href({ days: String(r) })}
+              aria-current={r === days || undefined}
+              className="rounded-full px-4 py-1.5 text-sm text-muted transition-colors hover:text-ink aria-[current]:bg-paper aria-[current]:text-ink aria-[current]:shadow-[0_1px_4px_rgb(26_33_48/0.1)]"
             >
-              {label}
-              {t === "issues" && s.issues.length > 0 && <Count n={s.grading_errors + s.client_errors} />}
-              {t === "feedback" && open > 0 && <Count n={open} />}
+              {r} days
             </Link>
           ))}
         </nav>
-      </aside>
+      </header>
 
-      <div className="flex min-w-0 flex-col gap-8">
-        <header className="rise flex flex-wrap items-end justify-between gap-6">
-          <div className="flex flex-col gap-1">
-            <p className="text-sm text-muted">
-              {day(s.since)} to today · {days} days
-            </p>
-            <h1 className="text-display font-semibold">{TABS.find(([t]) => t === tab)![2]}</h1>
-          </div>
-          <nav aria-label="Period" className="flex rounded-full bg-panel p-1">
-            {RANGES.map((r) => (
-              <Link
-                key={r}
-                href={href({ days: String(r) })}
-                aria-current={r === days || undefined}
-                className="rounded-full px-4 py-1.5 text-sm text-muted transition-colors hover:text-ink aria-[current]:bg-paper aria-[current]:text-ink aria-[current]:shadow-[0_1px_4px_rgb(26_33_48/0.1)]"
-              >
-                {r} days
-              </Link>
-            ))}
-          </nav>
-        </header>
+      <nav aria-label="Sections" className="mt-8 flex gap-6 overflow-x-auto border-b border-line">
+        {TABS.map(([t, label]) => (
+          <Link
+            key={t}
+            href={href({ tab: t, sort: "", show: "" })}
+            aria-current={t === tab ? "page" : undefined}
+            className="-mb-px flex shrink-0 items-center gap-2 border-b-2 border-transparent py-3 text-muted transition-colors hover:text-ink aria-[current]:border-ink aria-[current]:font-semibold aria-[current]:text-ink"
+          >
+            {label}
+            {t === "issues" && s.issues.length > 0 && <Count n={s.grading_errors + s.client_errors} />}
+            {t === "feedback" && open > 0 && <Count n={open} />}
+          </Link>
+        ))}
+      </nav>
 
-        {tab === "overview" && <Overview s={s} m={m} days={days} href={href} />}
+      <div className="mt-10 flex flex-col gap-8">
+        {tab === "overview" && <Overview s={s} m={m} days={days} />}
         {tab === "users" && <Users s={s} users={m.users} sort={q.sort} href={href} />}
         {tab === "traffic" && <Traffic s={s} />}
         {tab === "content" && <Content s={s} />}
@@ -145,59 +150,83 @@ function Count({ n: v }: { n: number }) {
 
 // ---- Overview ----
 
-function Overview({ s, m, days, href }: { s: Stats; m: More; days: number; href: (q: Query) => string }) {
+// A share as a whole percent, or null when there's nothing to divide by.
+const rate = (part: number | undefined, whole: number | undefined) => (part !== undefined && whole ? Math.round((part / whole) * 100) : null);
+const per = (part: number | undefined, whole: number | undefined) => (part !== undefined && whole ? Math.round((part / whole) * 10) / 10 : null);
+
+function Overview({ s, m, days }: { s: Stats; m: More; days: number }) {
   const f = s.funnel;
+  const p = m.prev;
   const graded = total(s.scores);
-  const todo = m.feedback.filter((x) => !x.handled_at);
+  // Rates say more than raw counts: how many people get value, and whether that's improving.
+  const kpis: Kpi[] = [
+    { label: "Activation", value: rate(f.opened, f.signed_up), unit: "%", note: "of new users opened a video" },
+    { label: "Recap rate", value: rate(s.recaps, s.videos_opened), prev: rate(p.recaps, p.videos_opened), unit: "%", note: "of opened videos got a recap" },
+    { label: "Return rate", value: rate(f.returned, f.signed_up), unit: "%", note: "of new users came back another day" },
+    { label: "Weekly stickiness", value: rate(s.active_7d, s.active), unit: "%", note: `of the period's active users were here this week` },
+    { label: "Videos per active user", value: per(s.videos_opened, s.active), prev: per(p.videos_opened, p.active), note: "opened in the period" },
+    {
+      label: "Grading failures",
+      value: rate(s.grading_errors, s.recaps + s.grading_errors),
+      prev: rate(p.grading_errors, p.recaps + (p.grading_errors ?? 0)),
+      unit: "%",
+      note: `${n(s.grading_errors)} of ${n(s.recaps + s.grading_errors)} recaps couldn't be graded`,
+      lowerIsBetter: true,
+    },
+  ];
   return (
     <>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      {/* Four headline numbers, each against the period before. */}
+      <dl className="rise grid overflow-hidden rounded-panel bg-paper sm:grid-cols-2 lg:grid-cols-4">
+        {(
+          [
+            ["Visitors", s.visitors, p.visitors, `${n(s.views)} page views`],
+            ["New users", s.users_new, p.users_new, `${n(s.users_total)} in total`],
+            ["Active users", s.active, p.active, `${n(s.active_7d)} this week`],
+            ["Average score", s.avg_score, p.avg_score, `${n(s.recaps)} recaps graded`],
+          ] as const
+        ).map(([label, v, prev, note], i) => (
+          <div key={label} className="flex flex-col gap-1 border-line p-6 max-lg:not-last:border-b lg:not-last:border-r">
+            <dt className="text-sm text-muted">{label}</dt>
+            <dd className={`text-display font-semibold tabular-nums ${i === 3 && v !== null ? scoreColor(v) : ""}`}>{v === null ? "–" : n(v)}</dd>
+            <dd className="flex flex-wrap gap-x-2 text-sm">
+              <Change value={v} prev={prev} points={i === 3} />
+              <span className="text-muted">· {note}</span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <section aria-label="Key rates" className="rise grid gap-x-8 gap-y-6 [--d:60ms] sm:grid-cols-2 lg:grid-cols-3">
+        {kpis.map((k) => (
+          <KpiCell key={k.label} {...k} />
+        ))}
+      </section>
+
+      <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
         {/* The one big chart, on the night surface so it leads the page. */}
-        <section className="rise flex min-w-0 flex-col gap-8 rounded-hero bg-night p-6 text-night-ink sm:p-8">
+        <section className="rise flex min-w-0 flex-col gap-8 rounded-panel bg-night p-6 text-night-ink">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="flex flex-col gap-1">
               <h2 className="text-xl font-semibold">Visitors per day</h2>
-              <p className="text-sm text-night-muted">
-                {n(s.views)} page views in the last {days} days
-              </p>
+              <p className="text-sm text-night-muted">Last {days} days</p>
             </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-display font-semibold tabular-nums">{n(s.visitors)}</span>
-              <Change value={s.visitors} prev={m.prev.visitors} dark />
-            </div>
+            <Change value={s.visitors} prev={p.visitors} dark />
           </div>
-          <Bars dark unit="visitors" days={s.by_day} pick={(d) => d.visitors} height="h-56" />
+          <Bars dark unit="visitors" days={s.by_day} pick={(d) => d.visitors} height="h-64" />
         </section>
-
-        <section className="rise flex min-w-0 flex-col rounded-hero bg-paper p-6 [--d:80ms] sm:p-8">
-          <h2 className="text-xl font-semibold">Key numbers</h2>
-          <p className="text-sm text-muted">Against the {days} days before</p>
-          <dl className="mt-4 flex flex-col">
-            {(
-              [
-                ["New users", s.users_new, m.prev.users_new, `${n(s.users_total)} in total`],
-                ["Active users", s.active, m.prev.active, `${n(s.active_7d)} this week`],
-                ["Recaps graded", s.recaps, m.prev.recaps, `${n(s.videos_opened)} videos opened`],
-                ["Average score", s.avg_score, m.prev.avg_score, s.avg_notes === null ? "no notes yet" : `${s.avg_notes} notes per video`],
-              ] as const
-            ).map(([label, v, prev, note], i) => (
-              <div key={label} className="flex items-center justify-between gap-4 border-b border-line py-4 last:border-0">
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <dt>{label}</dt>
-                  <dd className="truncate text-sm text-muted">{note}</dd>
-                </div>
-                <dd className="flex shrink-0 flex-col items-end gap-0.5">
-                  <span className={`text-2xl font-semibold tabular-nums ${i === 3 && v !== null ? scoreColor(v) : ""}`}>{v === null ? "–" : n(v)}</span>
-                  <Change value={v} prev={prev} points={i === 3} />
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </section>
+        <div className="flex flex-col gap-8">
+          <Surface title="New users per day">
+            <Bars unit="sign-ups" days={s.by_day} pick={(d) => d.signups} height="h-20" />
+          </Surface>
+          <Surface title="Videos opened per day">
+            <Bars unit="videos" days={s.by_day} pick={(d) => d.videos} height="h-20" />
+          </Surface>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <section className="rise flex min-w-0 flex-col gap-5 rounded-hero bg-sun-soft p-6 [--d:120ms]">
+      <div className="grid gap-8 lg:grid-cols-2">
+        <section className="rise flex min-w-0 flex-col gap-5 rounded-panel bg-sun-soft p-6">
           <div className="flex flex-col gap-1">
             <h2 className="text-xl font-semibold">From sign-up to habit</h2>
             <p className="text-sm text-ink/70">People who signed up in the last {days} days</p>
@@ -213,7 +242,6 @@ function Overview({ s, m, days, href }: { s: Stats; m: More; days: number; href:
             ]}
           />
         </section>
-
         <Surface title="How recaps score" sub={`${n(graded)} graded in the period`}>
           {graded ? (
             <Ring
@@ -229,87 +257,42 @@ function Overview({ s, m, days, href }: { s: Stats; m: More; days: number; href:
             <Empty title="No graded recaps yet." hint="Scores show up here once people finish a video and write what they remember." />
           )}
         </Surface>
-
-        <Surface title="Growth" sub="Sign-ups and videos opened per day">
-          <div className="flex flex-col gap-6">
-            <Mini label="Sign-ups" total={s.users_new}>
-              <Bars unit="sign-ups" days={s.by_day} pick={(d) => d.signups} height="h-16" bare />
-            </Mini>
-            <Mini label="Videos opened" total={s.videos_opened}>
-              <Bars unit="videos" days={s.by_day} pick={(d) => d.videos} height="h-16" bare />
-            </Mini>
-          </div>
-        </Surface>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Surface title="Latest feedback" sub={todo.length ? `${n(todo.length)} still to handle` : "All handled"} more={href({ tab: "feedback", sort: "", show: "" })}>
-          {todo.length ? (
-            <ul className="flex flex-col">
-              {todo.slice(0, 3).map((x) => (
-                <li key={x.id} className="flex flex-col gap-1 border-b border-line py-3 last:border-0">
-                  <p className="line-clamp-2 leading-normal break-words">{x.message}</p>
-                  <p className="truncate text-sm text-muted">
-                    {when(x.at)} · {x.page ?? "unknown page"}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty title="All caught up." hint="New messages from the Feedback button land here first." />
-          )}
-        </Surface>
-        <Surface title="Latest issues" sub={`${n(s.grading_errors)} grading, ${n(s.client_errors)} in the app`} more={href({ tab: "issues", sort: "", show: "" })}>
-          {s.issues.length ? (
-            <ul className="flex flex-col">
-              {s.issues.slice(0, 3).map((i, k) => (
-                <li key={k} className="flex flex-col gap-1 border-b border-line py-3 last:border-0">
-                  <p className="line-clamp-2 leading-normal break-words">{i.detail ?? "No message"}</p>
-                  <p className="flex min-w-0 gap-2 text-sm text-muted">
-                    <span className={`shrink-0 rounded-full px-2 ${i.kind === "grading" ? "bg-sun-soft text-ink" : "bg-bad-soft text-bad"}`}>
-                      {i.kind === "grading" ? "Grading" : "App error"}
-                    </span>
-                    <span className="truncate">{i.place}</span>
-                    <span className="ml-auto shrink-0">{when(i.at)}</span>
-                  </p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty title="Nothing went wrong in this period." hint="Failed gradings and app errors will show up here." />
-          )}
-        </Surface>
       </div>
     </>
   );
 }
 
-// The change against the period before: ↑/↓ and a percent (or points, for the score). The arrow carries the
-// direction, so it never relies on color alone.
-function Change({ value, prev, points, dark }: { value: number | null; prev: number | null; points?: boolean; dark?: boolean }) {
-  const muted = dark ? "text-night-muted" : "text-muted";
-  const [up, down] = dark ? ["text-good-n", "text-bad-n"] : ["text-good", "text-bad"];
-  if (value === null || prev === null) return <span className={`text-sm ${muted}`}>no earlier data</span>;
-  if (!points && prev === 0) return value ? <span className={`text-sm ${up}`}>↑ new</span> : <span className={`text-sm ${muted}`}>none before either</span>;
-  const diff = points ? value - prev : Math.round(((value - prev) / prev) * 100);
-  if (!diff) return <span className={`text-sm ${muted}`}>same as before</span>;
+type Kpi = { label: string; value: number | null; prev?: number | null; unit?: string; note: string; lowerIsBetter?: boolean };
+
+// A rate with what it means in one line. Its change is in points (a rate's percent of a percent is hard to read);
+// rates that come only from this period's sign-ups have no earlier value to compare with.
+function KpiCell({ label, value, prev, unit = "", note, lowerIsBetter }: Kpi) {
   return (
-    <span className={`text-sm tabular-nums ${diff > 0 ? up : down}`}>
-      {diff > 0 ? "↑" : "↓"} {Math.abs(diff)}
-      {points ? " pts" : "%"}
-    </span>
+    <div className="flex min-w-0 flex-col gap-1 border-t border-line pt-4">
+      <p className="flex items-baseline justify-between gap-4">
+        <span className="text-sm text-muted">{label}</span>
+        {prev !== undefined && <Change value={value} prev={prev} points unit={unit === "%" ? " pts" : ""} lowerIsBetter={lowerIsBetter} />}
+      </p>
+      <p className="text-2xl font-semibold tabular-nums">{value === null ? "–" : `${value}${unit}`}</p>
+      <p className="text-sm text-muted">{note}</p>
+    </div>
   );
 }
 
-function Mini({ label, total: t, children }: { label: string; total: number; children: React.ReactNode }) {
+// The change against the period before: ↑/↓ and a percent, or a difference (`points`, with its `unit`). The arrow
+// carries the direction, so it never relies on color alone; `lowerIsBetter` flips which way is good.
+function Change({ value, prev, points, unit = " pts", dark, lowerIsBetter }: { value: number | null; prev: number | null; points?: boolean; unit?: string; dark?: boolean; lowerIsBetter?: boolean }) {
+  const muted = dark ? "text-night-muted" : "text-muted";
+  const [good, bad] = dark ? ["text-good-n", "text-bad-n"] : ["text-good", "text-bad"];
+  if (value === null || prev === null) return <span className={`text-sm ${muted}`}>no earlier data</span>;
+  if (!points && prev === 0) return value ? <span className={`text-sm ${good}`}>↑ new</span> : <span className={`text-sm ${muted}`}>none before either</span>;
+  const diff = points ? Math.round((value - prev) * 10) / 10 : Math.round(((value - prev) / prev) * 100);
+  if (!diff) return <span className={`text-sm ${muted}`}>same as before</span>;
   return (
-    <div className="flex flex-col gap-2">
-      <p className="flex items-baseline justify-between gap-4">
-        <span className="text-sm text-muted">{label}</span>
-        <span className="font-semibold tabular-nums">{n(t)}</span>
-      </p>
-      {children}
-    </div>
+    <span className={`shrink-0 text-sm tabular-nums ${diff > 0 !== !!lowerIsBetter ? good : bad}`}>
+      {diff > 0 ? "↑" : "↓"} {Math.abs(diff)}
+      {points ? unit : "%"}
+    </span>
   );
 }
 
@@ -377,7 +360,7 @@ function Users({ s, users, sort, href }: { s: Stats; users: User[]; sort?: strin
 function Traffic({ s }: { s: Stats }) {
   return (
     <>
-      <section className="rise flex min-w-0 flex-col gap-8 rounded-hero bg-night p-6 text-night-ink sm:p-8">
+      <section className="rise flex min-w-0 flex-col gap-8 rounded-panel bg-night p-6 text-night-ink">
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold">Page views per day</h2>
           <p className="text-sm text-night-muted">
@@ -544,19 +527,12 @@ function FeedbackList({ notes, show = "open", href }: { notes: Note[]; show?: st
 
 // ---- Pieces ----
 
-function Surface({ title, sub, more, children }: { title: string; sub?: string; more?: string; children: React.ReactNode }) {
+function Surface({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <section className="rise flex min-w-0 flex-col gap-5 rounded-hero bg-paper p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h2 className="text-xl font-semibold">{title}</h2>
-          {sub && <p className="text-sm text-muted">{sub}</p>}
-        </div>
-        {more && (
-          <Link href={more} className="shrink-0 rounded-full bg-canvas px-3 py-1.5 text-sm transition-colors hover:bg-ink hover:text-paper">
-            See all
-          </Link>
-        )}
+    <section className="rise flex min-w-0 flex-col gap-5 rounded-panel bg-paper p-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-xl font-semibold">{title}</h2>
+        {sub && <p className="text-sm text-muted">{sub}</p>}
       </div>
       {children}
     </section>
@@ -574,8 +550,8 @@ function Empty({ title, hint }: { title: string; hint: string }) {
 
 // One series per chart (never two scales on one), columns growing from one baseline with a 2px gap. The busiest day
 // is picked out and labeled; hovering any day shows its value, and the table under it has every number. `dark` is
-// for the night surface; `bare` drops the axis labels and table for the small charts.
-function Bars({ unit, days, pick, height, dark, bare }: { unit: string; days: Day[]; pick: (d: Day) => number; height: string; dark?: boolean; bare?: boolean }) {
+// for the night surface.
+function Bars({ unit, days, pick, height, dark }: { unit: string; days: Day[]; pick: (d: Day) => number; height: string; dark?: boolean }) {
   const values = days.map(pick);
   const max = Math.max(1, ...values);
   const peak = values.indexOf(Math.max(...values));
@@ -584,7 +560,7 @@ function Bars({ unit, days, pick, height, dark, bare }: { unit: string; days: Da
     : ["bg-sky-2", "bg-link", "border-line", "text-muted", "bg-ink text-paper"];
   return (
     <div className="flex flex-col gap-3">
-      <div className={`relative ${bare ? "" : "pt-8"}`}>
+      <div className="relative pt-8">
         <div className={`flex ${height} items-end gap-[2px] border-b ${line}`}>
           {days.map((d, i) => (
             <div key={d.d} className="group relative flex h-full flex-1 items-end justify-center">
@@ -592,7 +568,7 @@ function Bars({ unit, days, pick, height, dark, bare }: { unit: string; days: Da
                 className={`relative w-full max-w-6 rounded-t-[4px] transition-opacity group-hover:opacity-80 ${i === peak && values[i] ? top : bar}`}
                 style={{ height: values[i] ? `${Math.max(3, (values[i] / max) * 100)}%` : 0 }}
               >
-                {!bare && i === peak && values[i] > 0 && (
+                {i === peak && values[i] > 0 && (
                   <span className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-full bg-sun px-2 text-sm font-semibold whitespace-nowrap text-ink tabular-nums group-hover:hidden">
                     {n(values[i])}
                   </span>
@@ -606,25 +582,23 @@ function Bars({ unit, days, pick, height, dark, bare }: { unit: string; days: Da
         </div>
         <div className={`mt-2 flex justify-between text-sm ${muted}`}>
           <span>{day(days[0].d)}</span>
-          {!bare && peak >= 0 && values[peak] > 0 && <span>Busiest: {day(days[peak].d)}</span>}
+          {peak >= 0 && values[peak] > 0 && <span>Busiest: {day(days[peak].d)}</span>}
           <span>{day(days[days.length - 1].d)}</span>
         </div>
       </div>
-      {!bare && (
-        <details className="text-sm">
-          <summary className={`cursor-pointer transition-colors ${muted} ${dark ? "hover:text-night-ink" : "hover:text-ink"}`}>Show as a table</summary>
-          <table className="mt-2 w-full tabular-nums">
-            <tbody>
-              {days.map((d, i) => (
-                <tr key={d.d} className={`border-b ${line}`}>
-                  <td className={`py-1 ${muted}`}>{day(d.d)}</td>
-                  <td className="py-1 text-right">{n(values[i])}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </details>
-      )}
+      <details className="text-sm">
+        <summary className={`cursor-pointer transition-colors ${muted} ${dark ? "hover:text-night-ink" : "hover:text-ink"}`}>Show as a table</summary>
+        <table className="mt-2 w-full tabular-nums">
+          <tbody>
+            {days.map((d, i) => (
+              <tr key={d.d} className={`border-b ${line}`}>
+                <td className={`py-1 ${muted}`}>{day(d.d)}</td>
+                <td className="py-1 text-right">{n(values[i])}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
     </div>
   );
 }
