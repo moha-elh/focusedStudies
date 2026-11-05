@@ -44,7 +44,9 @@ const SYSTEM =
   "and leave a list empty rather than padding it. Write feedback directly to the learner (\"you\").";
 
 // Groq's OpenAI-compatible API with strict JSON-schema output; the reply is still validated before it's saved.
-// ponytail: Groq's free tier caps tokens per minute, so long transcripts can be rejected; a paid tier lifts it.
+// Groq's free tier caps tokens per minute (8k), so long transcripts get a 413; the caller falls back to Claude.
+class TooLarge extends Error {}
+
 async function gradeWithGroq(content: string) {
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -55,6 +57,7 @@ async function gradeWithGroq(content: string) {
       response_format: { type: "json_schema", json_schema: { name: "feedback", strict: true, schema: z.toJSONSchema(Feedback) } },
     }),
   });
+  if (res.status === 413) throw new TooLarge();
   if (!res.ok) throw new Error(`Groq ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const json = (await res.json()) as { choices: { message: { content: string } }[] };
   return Feedback.safeParse(JSON.parse(json.choices[0].message.content)).data ?? null;
@@ -97,13 +100,21 @@ export async function POST(req: Request) {
   else {
     const content = `<video_title>${title ?? "unknown"}</video_title>\n<transcript>\n${transcript}\n</transcript>\n\n<learner_recap>\n${recap}\n</learner_recap>`;
     try {
-      const graded = process.env.GROQ_API_KEY ? await gradeWithGroq(content) : await gradeWithClaude(content);
+      const graded = process.env.GROQ_API_KEY
+        ? await gradeWithGroq(content).catch((e) => {
+            if (e instanceof TooLarge && process.env.ANTHROPIC_API_KEY) return gradeWithClaude(content);
+            throw e;
+          })
+        : await gradeWithClaude(content);
       feedback = graded
         ? { ...graded, covered: graded.covered.slice(0, MAX_POINTS), missed: graded.missed.slice(0, MAX_POINTS), incorrect: graded.incorrect.slice(0, MAX_POINTS) }
         : { error: "The AI couldn't grade this recap. Your notes are saved." };
     } catch (e) {
-      console.error("grading", e instanceof Error ? e.message : e);
-      feedback = { error: "Grading failed. Your notes are saved." };
+      if (e instanceof TooLarge) feedback = { error: "This video is too long to grade right now. Your notes are saved." };
+      else {
+        console.error("grading", e instanceof Error ? e.message : e);
+        feedback = { error: "Grading failed. Your notes are saved." };
+      }
     }
   }
 
