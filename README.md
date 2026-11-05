@@ -46,7 +46,7 @@ Page views come from a random visitor-id cookie (no names or emails), and visito
 Never edit an old migration or run SQL in the production dashboard. Add a new file instead: `npx supabase migration new <name>`, write SQL that only adds things (`add column if not exists`, new tables), and test it with `npm run db:reset`.
 
 ### Branches
-`main` is the live app, `dev` is the test stage, `local` is where work happens. `feat/*`, `fix/*`, `style/*` branches → merged into `local` (tested with `npm run dev`) → `dev` (tested before release) → `main` (production). Before deploying a `main` that has new migrations, apply them to production: `npx supabase link` (once), then `npx supabase db push`. It only runs the migrations production hasn't had yet; since they only add things, the live app keeps working while it runs.
+`main` is the live app, `dev` is where work happens and is tested (`npm run dev` runs against the local Docker Supabase, so there is no separate test stage). `feat/*`, `fix/*`, `style/*` branches come off `dev` and merge back into `dev`; `dev` → `main` is the release. Before deploying a `main` that has new migrations, apply them to production: `npx supabase link` (once), then `npx supabase db push`. It only runs the migrations production hasn't had yet; since they only add things, the live app keeps working while it runs.
 
 Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimental-strip-types lib/export.test.ts && node --experimental-strip-types lib/safe-next.test.ts`
 

@@ -31,11 +31,19 @@ export function ColorChoice() {
 export default function ColorWheel({ value, action }: { value?: string | null; action?: (form: FormData) => Promise<void> }) {
   const id = useId();
   const [picked, setPicked] = useState(isHex(value) ? value : null);
+  // On a folder's page the saved color changes under us (a preset was clicked, or the save landed): follow it,
+  // so the wheel's center doesn't keep showing an old custom color.
+  const [saved, setSaved] = useState(value);
+  if (value !== saved) {
+    setSaved(value);
+    setPicked(isHex(value) ? value : null);
+  }
   const [hsl, setHsl] = useState(() => toHsl(picked ?? "#3a9be6"));
   const [typed, setTyped] = useState<string | null>(null); // the hex field while it's being edited
   const radio = useRef<HTMLInputElement>(null);
   const hidden = useRef<HTMLInputElement>(null);
   const hex = toHex(...hsl);
+  const anchor = `--wheel${id.replace(/\W/g, "")}`; // useId's characters aren't valid in a CSS name
 
   function use() {
     setPicked(hex);
@@ -79,18 +87,15 @@ export default function ColorWheel({ value, action }: { value?: string | null; a
         title="Pick any color"
         aria-label="Pick any color"
         aria-pressed={!!action && !!picked && picked === value}
-        style={{ "--picked": picked ?? "var(--color-paper)" } as React.CSSProperties}
-        className="grid size-7 place-items-center rounded-full bg-[conic-gradient(#3a9be6,#9b6ee0,#e46aa8,#e2564b,#ef8a2e,#e8b923,#4fb35a,#8b8f96,#3a9be6)] ring-ink ring-offset-2 ring-offset-canvas transition-transform peer-checked:ring-2 hover:scale-110 aria-pressed:ring-2"
-      >
-        <span aria-hidden className="grid size-4 place-items-center rounded-full bg-(--picked) text-sm leading-none font-semibold text-ink">
-          {!picked && "+"}
-        </span>
-      </button>
+        style={{ anchorName: anchor } as React.CSSProperties}
+        className="block size-7 rounded-full bg-[conic-gradient(#3a9be6,#9b6ee0,#e46aa8,#e2564b,#ef8a2e,#e8b923,#4fb35a,#8b8f96,#3a9be6)] ring-ink ring-offset-2 ring-offset-canvas transition-transform peer-checked:ring-2 hover:scale-110 aria-pressed:ring-2"
+      />
       <div
         id={id}
         popover="auto"
         aria-label="Pick a folder color"
-        className="m-auto w-[min(320px,calc(100vw-32px))] rounded-panel bg-canvas p-5 text-ink shadow-[0_24px_64px_rgb(26_33_48/0.3)]"
+        style={{ positionAnchor: anchor } as React.CSSProperties}
+        className="color-pop m-auto w-[min(320px,calc(100vw-32px))] rounded-panel bg-canvas p-5 text-ink shadow-[0_24px_64px_rgb(26_33_48/0.3)]"
       >
         <div className="flex flex-col gap-5">
           {/* The color as a folder, so you see what you're making rather than a flat swatch. */}

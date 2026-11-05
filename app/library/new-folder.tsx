@@ -14,7 +14,8 @@ type Video = {
 };
 
 // The last tile in the folder grid: name a folder and, if you like, pick videos to put in it.
-export default function NewFolder({ videos }: { videos: Video[] }) {
+// Made on a folder's page, it goes inside that folder (`parent`).
+export default function NewFolder({ videos, parent }: { videos: Video[]; parent?: string }) {
   const dialog = useId();
 
   return (
@@ -38,8 +39,9 @@ export default function NewFolder({ videos }: { videos: Video[] }) {
         className="m-auto w-[min(520px,calc(100vw-32px))] rounded-hero bg-canvas p-6 text-ink shadow-[0_24px_64px_rgb(26_33_48/0.3)] backdrop:bg-ink/40 sm:p-8"
       >
         <form action={createFolder} onSubmit={() => document.getElementById(dialog)?.hidePopover()} className="flex flex-col gap-6">
-          <h2 id={`${dialog}-title`} className="text-2xl font-semibold">
-            New folder
+          {parent && <input type="hidden" name="parent" value={parent} />}
+          <h2 id={`${dialog}-title`} className="text-2xl font-semibold break-words">
+            {parent ? `New folder in ${parent}` : "New folder"}
           </h2>
           <input
             name="folder"
