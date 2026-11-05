@@ -57,6 +57,8 @@ async function signOut() {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const user = await currentUser();
+  // Only admins see the link; for everyone else is_admin() is false (or errors) and nothing renders.
+  const admin = user ? (await (await supabase()).rpc("is_admin")).data === true : false;
   return (
     // Browser extensions (Grammarly and others) add attributes to <html> and <body> before React loads;
     // ignore those. This only covers these two tags, so real mismatches inside the app are still reported.
@@ -72,6 +74,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <div className="flex shrink-0 items-center gap-3">
             <PasteButton />
             {/* Kept smaller than the play button so it does not compete with it. */}
+            {admin && (
+              <Link href="/admin" className="text-sm font-semibold text-muted transition-colors hover:text-ink">Admin</Link>
+            )}
             {user ? (
               <form action={signOut}>
                 <button className="inline-flex min-h-9 items-center rounded-full bg-paper px-4 text-sm font-semibold shadow-[0_2px_8px_rgb(26_33_48/0.08)] transition-colors duration-200 hover:bg-ink hover:text-paper">
