@@ -3,6 +3,7 @@ import { listFolders, listSessions } from "@/lib/db";
 import { avgScore, BackToLibrary, Label, scoreColor, scoreOf, Thumb } from "../ui";
 import Folder from "./folder";
 import FolderButton from "./folder-button";
+import ColorWheel from "./color-wheel";
 import NewFolder from "./new-folder";
 import { recolorFolder } from "./actions";
 import { FOLDER_COLORS, type FolderColor } from "./colors";
@@ -12,7 +13,10 @@ import RemoveButton from "./remove-button";
 export default async function Library({ searchParams }: { searchParams: Promise<{ folder?: string }> }) {
   const [all, rows] = await Promise.all([listSessions(), listFolders()]);
   const colors = new Map(rows.map((f) => [f.name, f.color]));
-  const folders = Map.groupBy(all.filter((s) => s.folder), (s) => s.folder!);
+  const folders = Map.groupBy(
+    all.filter((s) => s.folder),
+    (s) => s.folder!,
+  );
   for (const { name } of rows) if (!folders.has(name)) folders.set(name, []);
   const names = [...folders.keys()].sort((a, b) => a.localeCompare(b));
   // An unknown folder (its last video moved out) shows the library.
@@ -26,29 +30,28 @@ export default async function Library({ searchParams }: { searchParams: Promise<
     <main className="wrap flex flex-col pt-10">
       <header className="rise flex flex-wrap items-end justify-between gap-6 border-b-2 border-ink pb-8">
         <div className="min-w-0">
-          {on ? (
-            <BackToLibrary className="mb-6" />
-          ) : (
-            <Label className="mb-4">Library</Label>
-          )}
+          {on ? <BackToLibrary className="mb-6" /> : <Label className="mb-4">Library</Label>}
           <h1 className="text-h1 font-semibold break-words sm:text-hero">{on ?? "Everything you’ve learned."}</h1>
           {on && (
             // Plain buttons in a form: picking a color saves it, no script needed.
-            <form action={recolorFolder.bind(null, on)} className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <span className="text-sm text-muted">Folder color</span>
-              {(Object.keys(FOLDER_COLORS) as FolderColor[]).map((c) => (
-                <button
-                  key={c}
-                  name="color"
-                  value={c}
-                  aria-label={c}
-                  title={c[0].toUpperCase() + c.slice(1)}
-                  aria-pressed={(colors.get(on) ?? "blue") === c}
-                  style={{ background: FOLDER_COLORS[c][0] }}
-                  className="size-7 rounded-full ring-ink ring-offset-2 ring-offset-canvas transition-transform hover:scale-110 aria-pressed:ring-2"
-                />
-              ))}
-            </form>
+              <form action={recolorFolder.bind(null, on)} className="contents">
+                {(Object.keys(FOLDER_COLORS) as FolderColor[]).map((c) => (
+                  <button
+                    key={c}
+                    name="color"
+                    value={c}
+                    aria-label={c}
+                    title={c[0].toUpperCase() + c.slice(1)}
+                    aria-pressed={(colors.get(on) ?? "blue") === c}
+                    style={{ background: FOLDER_COLORS[c][0] }}
+                    className="size-7 rounded-full ring-ink ring-offset-2 ring-offset-canvas transition-transform hover:scale-110 aria-pressed:ring-2"
+                  />
+                ))}
+              </form>
+              <ColorWheel value={colors.get(on)} action={recolorFolder.bind(null, on)} />
+            </div>
           )}
         </div>
         {inView.length > 0 && (
@@ -84,9 +87,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
       )}
 
       {on && !sessions.length ? (
-        <p className="rise py-10 leading-normal text-muted">
-          This folder is empty. Use the folder button on any video in your library to move it here.
-        </p>
+        <p className="rise py-10 leading-normal text-muted">This folder is empty. Use the folder button on any video in your library to move it here.</p>
       ) : !all.length && !names.length ? (
         <section className="rise relative mt-8 overflow-hidden rounded-[32px] bg-[#4d8fd9] [--d:150ms]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -94,10 +95,11 @@ export default async function Library({ searchParams }: { searchParams: Promise<
           <div className="relative m-4 flex max-w-md flex-col gap-4 rounded-panel bg-paper p-6 sm:m-10">
             <h2 className="text-2xl font-semibold">Your first lesson is one link away.</h2>
             <p className="leading-normal text-muted">
-              Pick a video you&apos;ve been meaning to learn from. Watch it here, write what you remember, and it&apos;ll
-              be saved with your feedback.
+              Pick a video you&apos;ve been meaning to learn from. Watch it here, write what you remember, and it&apos;ll be saved with your feedback.
             </p>
-            <Link href="/?paste=1" className="btn self-start">Pick a video ↗</Link>
+            <Link href="/?paste=1" className="btn self-start">
+              Pick a video ↗
+            </Link>
           </div>
         </section>
       ) : (
@@ -105,7 +107,11 @@ export default async function Library({ searchParams }: { searchParams: Promise<
           {sessions.map((s, i) => {
             const score = scoreOf(s.feedback);
             return (
-              <li key={s.id} className="rise group/row flex items-center border-b border-line" style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}>
+              <li
+                key={s.id}
+                className="rise group/row flex items-center border-b border-line"
+                style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}
+              >
                 {/* No recap yet means there's nothing to review, so go straight back to the video. */}
                 <Link
                   href={s.recap ? `/library/${s.id}` : `/watch/${s.video_id}`}
