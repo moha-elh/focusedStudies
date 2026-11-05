@@ -246,8 +246,14 @@ export default function Player({ videoId, title, start, previousRecap, previousN
         arm();
       }
     };
+    // A key press restarts the countdown (without showing the cursor), so if Chrome refused a lock for want of a
+    // recent click or key press (after Esc, say), the next try lands while this one still counts.
+    const onKey = () => {
+      if (!hidden) arm();
+    };
     const events = ["mousemove", "mousedown", "wheel"] as const;
     events.forEach((t) => document.addEventListener(t, onActivity, true));
+    document.addEventListener("keydown", onKey, true);
     document.addEventListener("pointerlockchange", onLockChange);
     window.addEventListener("blur", arm);
     arm();
@@ -255,6 +261,7 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     return () => {
       clearTimeout(hideTimer.current);
       events.forEach((t) => document.removeEventListener(t, onActivity, true));
+      document.removeEventListener("keydown", onKey, true);
       document.removeEventListener("pointerlockchange", onLockChange);
       window.removeEventListener("blur", arm);
       if (document.pointerLockElement) document.exitPointerLock();
@@ -491,8 +498,13 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   }
 
   function toggleFull() {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else stage.current?.requestFullscreen().catch(() => {});
+    if (!document.fullscreenElement) return void stage.current?.requestFullscreen().catch(() => {});
+    // Release the cursor ourselves before leaving fullscreen. If the browser releases it (as it does on leaving
+    // fullscreen), Chrome refuses to lock it again without a fresh click or key press, so the next fullscreen
+    // never hid the cursor. Released by us, it can lock again whenever the mouse goes still.
+    if (!document.pointerLockElement) return void document.exitFullscreen().catch(() => {});
+    document.addEventListener("pointerlockchange", () => document.exitFullscreen().catch(() => {}), { once: true });
+    document.exitPointerLock();
   }
 
   function seek(t: number) {
