@@ -87,13 +87,9 @@ export default function ColorWheel({ value, action }: { value?: string | null; a
         title="Pick any color"
         aria-label="Pick any color"
         aria-pressed={!!action && !!picked && picked === value}
-        style={{ "--picked": picked ?? "var(--color-paper)", anchorName: anchor } as React.CSSProperties}
-        className="grid size-7 place-items-center rounded-full bg-[conic-gradient(#3a9be6,#9b6ee0,#e46aa8,#e2564b,#ef8a2e,#e8b923,#4fb35a,#8b8f96,#3a9be6)] ring-ink ring-offset-2 ring-offset-canvas transition-transform peer-checked:ring-2 hover:scale-110 aria-pressed:ring-2"
-      >
-        <span aria-hidden className="grid size-4 place-items-center rounded-full bg-(--picked) text-sm leading-none font-semibold text-ink">
-          {!picked && "+"}
-        </span>
-      </button>
+        style={{ anchorName: anchor } as React.CSSProperties}
+        className="block size-7 rounded-full bg-[conic-gradient(#3a9be6,#9b6ee0,#e46aa8,#e2564b,#ef8a2e,#e8b923,#4fb35a,#8b8f96,#3a9be6)] ring-ink ring-offset-2 ring-offset-canvas transition-transform peer-checked:ring-2 hover:scale-110 aria-pressed:ring-2"
+      />
       <div
         id={id}
         popover="auto"
