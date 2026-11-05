@@ -637,7 +637,7 @@ function Ring({ parts, total: t }: { parts: [string, number, number][]; total: n
   const lens = parts.map(([, v]) => (v / t) * c);
   const starts = lens.map((_, i) => lens.slice(0, i).reduce((x, y) => x + y, 0));
   return (
-    <div className="flex flex-wrap items-center gap-6">
+    <div className="flex flex-col items-center gap-6">
       <div className="relative size-36 shrink-0">
         <svg viewBox="0 0 100 100" className="size-full -rotate-90 text-link" aria-hidden>
           <circle cx="50" cy="50" r={r} fill="none" strokeWidth="12" className="stroke-panel" />
@@ -655,7 +655,7 @@ function Ring({ parts, total: t }: { parts: [string, number, number][]; total: n
           </span>
         </span>
       </div>
-      <ul className="flex min-w-0 flex-1 flex-col gap-2">
+      <ul className="flex w-full flex-col gap-2">
         {parts.map(([label, v, o]) => (
           <li key={label} className="flex items-center gap-3">
             <span aria-hidden className="size-3 shrink-0 rounded-full bg-link" style={{ opacity: o }} />
