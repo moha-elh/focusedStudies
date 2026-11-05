@@ -502,11 +502,10 @@ export default function Player({ videoId, title, start, previousRecap, previousN
           className={`rise outline-none [--d:100ms] ${full ? "relative h-dvh overflow-hidden bg-black" : "grid gap-6 lg:grid-cols-[1fr_340px]"}`}
         >
           <div className={`relative w-full overflow-hidden ${full ? "h-full" : "aspect-video rounded-hero bg-panel"}`}>
-            {/* In fullscreen the iframe runs 160px past the top and bottom (YouTube's bars are ~105px tall in a player
-                this size), so its own title and control bars sit off-screen and only our bar shows. The video stays whole
-                (YouTube letterboxes it) on screens 16:9 or taller.
-                ponytail: on ultrawide screens this crops the video's top and bottom; size by aspect if that matters. */}
-            <div ref={host} className={full ? "absolute inset-x-0 -top-40 -bottom-40" : "absolute inset-0"} />
+            {/* In fullscreen the iframe runs 64px past the top and bottom, so YouTube's own title and control bars sit
+                off-screen and only our bar shows. The video stays whole (YouTube letterboxes it) on screens 16:9 or taller.
+                ponytail: on ultrawide screens this crops 64px off the video's top and bottom; size by aspect if that matters. */}
+            <div ref={host} className={full ? "absolute inset-x-0 -top-16 -bottom-16" : "absolute inset-0"} />
             {full && (
               // Always over the video in fullscreen (see the effect above): click plays or pauses, double-click leaves
               // fullscreen, the wheel changes volume.
