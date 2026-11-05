@@ -201,8 +201,10 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   useEffect(() => {
     if (!full) return;
     let hidden = false;
+    let anchor: { x: number; y: number } | null = null; // where the cursor sat when the layer appeared
     const hide = (v: boolean) => {
       hidden = v;
+      anchor = null;
       setIdle(v);
     };
     const arm = () => {
@@ -216,6 +218,13 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     const onActivity = (e: Event) => {
       if (!hidden) return arm();
       if (e instanceof WheelEvent) return changeVolume(-e.deltaY / 20);
+      // Chrome sends a mousemove when the layer appears under a still cursor (what's under it changed). Counting that
+      // as a move removed the layer at once, so after the first real move the cursor never hid again. So the first
+      // move only notes where the cursor is, and it takes a real move of a few pixels from there to show it.
+      if (e instanceof MouseEvent && e.type === "mousemove") {
+        if (!anchor) return void (anchor = { x: e.screenX, y: e.screenY });
+        if (Math.hypot(e.screenX - anchor.x, e.screenY - anchor.y) < 4) return;
+      }
       hide(false);
       arm();
     };
