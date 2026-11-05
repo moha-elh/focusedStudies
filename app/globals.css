@@ -240,6 +240,10 @@ body {
 }
 
 /* The folder color picker's sliders: the track is painted inline with the colors it runs through. */
+/* The wheel's picker opens next to the wheel where anchor positioning exists, centered elsewhere. */
+@supports (position-area: bottom) {
+  .color-pop { margin: 8px 0; inset: auto; position-area: bottom span-right; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
+}
 .color-range { appearance: none; width: 100%; height: 12px; border-radius: 999px; outline: none; cursor: pointer; }
 .color-range::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; border-radius: 999px; background: var(--color-paper); border: 2px solid var(--color-ink); box-shadow: 0 2px 6px rgb(26 33 48 / 0.25); }
 .color-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 999px; background: var(--color-paper); border: 2px solid var(--color-ink); }
