@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { DESCRIPTION, SITE } from "@/lib/site";
 import { currentUser, supabase } from "@/lib/supabase";
 import Feedback from "./feedback";
+import Track from "./track";
 import NavLinks, { PasteButton, SectionLink } from "./nav-links";
 import { LINKS, Mark } from "./ui";
 import "./globals.css";
@@ -59,6 +60,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     // ignore those. This only covers these two tags, so real mismatches inside the app are still reported.
     <html lang="en" className={`${bricolage.variable} h-full antialiased`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className="flex min-h-full flex-col font-sans text-base" suppressHydrationWarning>
+        <Track />
         {/* Fixed height so the home hero can slide underneath it (see -mt-21 there). */}
         <header className="wrap relative z-10 flex h-21 items-center justify-between gap-4">
           <Link href="/" className="text-xl font-semibold">
