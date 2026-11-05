@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 const SECTIONS: [string, string][] = [
-  ["What we collect", "When you sign in with Google or GitHub, we receive your name, email address and profile picture. When you use FocusLearn, we save the videos you watch, your notes, your recaps and the feedback you get. If you use the Feedback button, we save your message and the page you sent it from."],
+  ["What we collect", "When you sign in with Google or GitHub, we receive your name, email address and profile picture. When you use FocusLearn, we save the videos you watch, your notes, your recaps and the feedback you get. If you use the Feedback button, we save your message and the page you sent it from. To see how the site is used, we count page views and errors with a random visitor id in a cookie (not your name or email) and, for links from other sites, only that site's name. If your browser sends Global Privacy Control, we don't count you."],
   ["How we use it", "Only to run FocusLearn: to sign you in, keep your library, and grade your recaps. We don't sell your data, show ads, or use it to track you across other sites."],
   ["Who else sees it", "Your data is stored with Supabase (database and sign-in) and the site is hosted on Vercel. To grade a recap, your recap and the video's transcript are sent to an AI provider (Groq). Videos play through YouTube's embedded player, and sponsor segments are looked up on SponsorBlock using only the video's ID."],
   ["Your choices", "Your library is private to your account. To delete your account and everything in it, send a request with the Feedback button and include the email you signed in with; we'll delete it."],
@@ -25,7 +25,7 @@ export default function Privacy() {
             <p className="leading-normal text-muted">{body}</p>
           </section>
         ))}
-        <p className="text-sm text-muted">Last updated October 28, 2026.</p>
+        <p className="text-sm text-muted">Last updated November 4, 2026.</p>
       </div>
     </main>
   );

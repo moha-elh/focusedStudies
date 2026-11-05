@@ -33,3 +33,25 @@ insert into public.folders (user_id, name) values
   ('11111111-1111-4111-8111-111111111111', 'Machine learning'),
   ('11111111-1111-4111-8111-111111111111', 'Math'),
   ('11111111-1111-4111-8111-111111111111', 'Reading list');
+
+-- The test user is an admin locally, so /admin works. In production, add yourself with the insert in the migration.
+insert into public.admins (user_id) values ('11111111-1111-4111-8111-111111111111');
+
+-- 30 days of made-up traffic so the dashboard has something to draw.
+insert into public.events (at, user_id, visitor, name, path, referrer)
+select now() - make_interval(days => d, hours => (random() * 20)::int),
+  case when random() < 0.3 then '11111111-1111-4111-8111-111111111111'::uuid end,
+  'visitor-' || (random() * (20 + d))::int,
+  'page_view',
+  (array['/', '/', '/', '/library', '/watch/[id]', '/watch/[id]', '/login', '/privacy'])[1 + (random() * 7)::int],
+  case when random() < 0.25 then (array['google.com', 'youtube.com', 'x.com', 'reddit.com'])[1 + (random() * 3)::int] end
+from generate_series(0, 29) d, generate_series(1, 40) n
+where n < 8 + 30 * (1 - d / 30.0) * random(); -- busier lately, a different count each day
+
+insert into public.events (at, visitor, name, path, detail) values
+  (now() - interval '3 hours', 'visitor-3', 'client_error', '/watch/[id]', 'TypeError: Cannot read properties of undefined (reading ''getCurrentTime'')'),
+  (now() - interval '2 days', 'visitor-9', 'client_error', '/library', 'ChunkLoadError: Loading chunk 412 failed.');
+
+insert into public.feedback (message, page) values
+  ('Would love a dark mode for late-night studying.', '/watch/aircAruvnKk'),
+  ('The grading said I missed something I definitely mentioned.', '/library');

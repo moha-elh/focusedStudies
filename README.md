@@ -36,6 +36,11 @@ Needs Docker running. `npm run dev:local` starts Supabase on your machine (same 
 - `npm run db:reset` wipes the local database and reapplies the migrations and seed data. `npm run db:stop` stops it.
 - Local database dashboard: http://127.0.0.1:54323
 
+### Admin dashboard
+`/admin` shows users, traffic, the sign-up → recap funnel, scores, top pages and videos, errors and feedback. Locally the test user is an admin. In production, sign in once, then run this in the SQL Editor (only the database can make an admin, and the stats function refuses everyone else):
+`insert into public.admins (user_id) select id from auth.users where email = 'you@example.com';`
+Page views come from a random visitor-id cookie (no names or emails), and visitors who send Global Privacy Control aren't counted.
+
 ### Changing the database
 Never edit an old migration or run SQL in the production dashboard. Add a new file instead: `npx supabase migration new <name>`, write SQL that only adds things (`add column if not exists`, new tables), and test it with `npm run db:reset`.
 
