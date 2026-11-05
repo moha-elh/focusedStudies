@@ -41,13 +41,14 @@ type More = {
 };
 
 const RANGES = [7, 30, 90];
+// Section, menu label, page title.
 const TABS = [
-  ["overview", "Overview"],
-  ["users", "Users"],
-  ["traffic", "Traffic"],
-  ["content", "Content"],
-  ["issues", "Issues"],
-  ["feedback", "Feedback"],
+  ["overview", "Overview", "How FocusLearn is doing"],
+  ["users", "Users", "Who uses FocusLearn"],
+  ["traffic", "Traffic", "Where visits come from"],
+  ["content", "Content", "What people watch"],
+  ["issues", "Issues", "What went wrong"],
+  ["feedback", "Feedback", "What people asked for"],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 type Query = { days?: string; tab?: string; sort?: string; show?: string };
@@ -85,43 +86,49 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Qu
   const open = m.feedback.filter((f) => !f.handled_at).length;
 
   return (
-    <main className="wrap flex flex-col pt-10 pb-24">
-      <header className="rise flex flex-wrap items-end justify-between gap-6">
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-muted">Admin · since {day(s.since)}</p>
-          <h1 className="text-display font-semibold">How FocusLearn is doing</h1>
-        </div>
-        <nav aria-label="Period" className="flex rounded-full bg-panel p-1">
-          {RANGES.map((r) => (
+    <main className="wrap grid gap-8 pt-10 pb-24 lg:grid-cols-[208px_minmax(0,1fr)]">
+      {/* The menu: a column on wide screens, a scrolling row above the page on narrow ones. */}
+      <aside className="lg:sticky lg:top-6 lg:self-start">
+        <nav aria-label="Sections" className="flex gap-1 overflow-x-auto rounded-panel bg-paper p-2 lg:flex-col">
+          <p className="hidden px-4 pt-2 pb-3 text-sm text-muted lg:block">Admin</p>
+          {TABS.map(([t, label]) => (
             <Link
-              key={r}
-              href={href({ days: String(r) })}
-              aria-current={r === days || undefined}
-              className="rounded-full px-4 py-1.5 text-sm text-muted transition-colors hover:text-ink aria-[current]:bg-paper aria-[current]:text-ink aria-[current]:shadow-[0_1px_4px_rgb(26_33_48/0.1)]"
+              key={t}
+              href={href({ tab: t, sort: "", show: "" })}
+              aria-current={t === tab ? "page" : undefined}
+              className="flex shrink-0 items-center justify-between gap-3 rounded-media px-4 py-2.5 text-muted transition-colors hover:bg-canvas hover:text-ink aria-[current]:bg-ink aria-[current]:text-paper"
             >
-              {r} days
+              {label}
+              {t === "issues" && s.issues.length > 0 && <Count n={s.grading_errors + s.client_errors} />}
+              {t === "feedback" && open > 0 && <Count n={open} />}
             </Link>
           ))}
         </nav>
-      </header>
+      </aside>
 
-      <nav aria-label="Sections" className="mt-8 flex gap-6 overflow-x-auto border-b border-line">
-        {TABS.map(([t, label]) => (
-          <Link
-            key={t}
-            href={href({ tab: t, sort: "", show: "" })}
-            aria-current={t === tab ? "page" : undefined}
-            className="-mb-px flex shrink-0 items-center gap-2 border-b-2 border-transparent py-3 text-muted transition-colors hover:text-ink aria-[current]:border-ink aria-[current]:font-semibold aria-[current]:text-ink"
-          >
-            {label}
-            {t === "issues" && s.issues.length > 0 && <Count n={s.grading_errors + s.client_errors} />}
-            {t === "feedback" && open > 0 && <Count n={open} />}
-          </Link>
-        ))}
-      </nav>
+      <div className="flex min-w-0 flex-col gap-8">
+        <header className="rise flex flex-wrap items-end justify-between gap-6">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted">
+              {day(s.since)} to today · {days} days
+            </p>
+            <h1 className="text-display font-semibold">{TABS.find(([t]) => t === tab)![2]}</h1>
+          </div>
+          <nav aria-label="Period" className="flex rounded-full bg-panel p-1">
+            {RANGES.map((r) => (
+              <Link
+                key={r}
+                href={href({ days: String(r) })}
+                aria-current={r === days || undefined}
+                className="rounded-full px-4 py-1.5 text-sm text-muted transition-colors hover:text-ink aria-[current]:bg-paper aria-[current]:text-ink aria-[current]:shadow-[0_1px_4px_rgb(26_33_48/0.1)]"
+              >
+                {r} days
+              </Link>
+            ))}
+          </nav>
+        </header>
 
-      <div className="mt-10 flex flex-col gap-8">
-        {tab === "overview" && <Overview s={s} m={m} days={days} />}
+        {tab === "overview" && <Overview s={s} m={m} days={days} href={href} />}
         {tab === "users" && <Users s={s} users={m.users} sort={q.sort} href={href} />}
         {tab === "traffic" && <Traffic s={s} />}
         {tab === "content" && <Content s={s} />}
@@ -138,42 +145,66 @@ function Count({ n: v }: { n: number }) {
 
 // ---- Overview ----
 
-function Overview({ s, m, days }: { s: Stats; m: More; days: number }) {
+function Overview({ s, m, days, href }: { s: Stats; m: More; days: number; href: (q: Query) => string }) {
   const f = s.funnel;
+  const graded = total(s.scores);
+  const todo = m.feedback.filter((x) => !x.handled_at);
   return (
     <>
-      {/* Four headline numbers, each against the period before. */}
-      <dl className="rise grid overflow-hidden rounded-panel bg-paper sm:grid-cols-2 lg:grid-cols-4">
-        <Hero label="Visitors" value={s.visitors} prev={m.prev.visitors} note={`${n(s.views)} page views`} />
-        <Hero label="New users" value={s.users_new} prev={m.prev.users_new} note={`${n(s.users_total)} in total`} />
-        <Hero label="Active users" value={s.active} prev={m.prev.active} note={`${n(s.active_7d)} this week`} />
-        <Hero
-          label="Average score"
-          value={s.avg_score}
-          prev={m.prev.avg_score}
-          points
-          tone={s.avg_score === null ? undefined : scoreColor(s.avg_score)}
-          note={`${n(s.recaps)} recaps graded`}
-        />
-      </dl>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        {/* The one big chart, on the night surface so it leads the page. */}
+        <section className="rise flex min-w-0 flex-col gap-8 rounded-hero bg-night p-6 text-night-ink sm:p-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-xl font-semibold">Visitors per day</h2>
+              <p className="text-sm text-night-muted">
+                {n(s.views)} page views in the last {days} days
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-display font-semibold tabular-nums">{n(s.visitors)}</span>
+              <Change value={s.visitors} prev={m.prev.visitors} dark />
+            </div>
+          </div>
+          <Bars dark unit="visitors" days={s.by_day} pick={(d) => d.visitors} height="h-56" />
+        </section>
 
-      <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
-        <Surface title="Visitors per day" sub={`Last ${days} days`}>
-          <Bars unit="visitors" days={s.by_day} pick={(d) => d.visitors} height="h-64" />
-        </Surface>
-        <div className="flex flex-col gap-8">
-          <Surface title="New users per day">
-            <Bars unit="sign-ups" days={s.by_day} pick={(d) => d.signups} height="h-20" />
-          </Surface>
-          <Surface title="Videos opened per day">
-            <Bars unit="videos" days={s.by_day} pick={(d) => d.videos} height="h-20" />
-          </Surface>
-        </div>
+        <section className="rise flex min-w-0 flex-col rounded-hero bg-paper p-6 [--d:80ms] sm:p-8">
+          <h2 className="text-xl font-semibold">Key numbers</h2>
+          <p className="text-sm text-muted">Against the {days} days before</p>
+          <dl className="mt-4 flex flex-col">
+            {(
+              [
+                ["New users", s.users_new, m.prev.users_new, `${n(s.users_total)} in total`],
+                ["Active users", s.active, m.prev.active, `${n(s.active_7d)} this week`],
+                ["Recaps graded", s.recaps, m.prev.recaps, `${n(s.videos_opened)} videos opened`],
+                ["Average score", s.avg_score, m.prev.avg_score, s.avg_notes === null ? "no notes yet" : `${s.avg_notes} notes per video`],
+              ] as const
+            ).map(([label, v, prev, note], i) => (
+              <div key={label} className="flex items-center justify-between gap-4 border-b border-line py-4 last:border-0">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <dt>{label}</dt>
+                  <dd className="truncate text-sm text-muted">{note}</dd>
+                </div>
+                <dd className="flex shrink-0 flex-col items-end gap-0.5">
+                  <span className={`text-2xl font-semibold tabular-nums ${i === 3 && v !== null ? scoreColor(v) : ""}`}>{v === null ? "–" : n(v)}</span>
+                  <Change value={v} prev={prev} points={i === 3} />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <Surface title="From sign-up to habit" sub={`People who signed up in the last ${days} days`}>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="rise flex min-w-0 flex-col gap-5 rounded-hero bg-sun-soft p-6 [--d:120ms]">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-xl font-semibold">From sign-up to habit</h2>
+            <p className="text-sm text-ink/70">People who signed up in the last {days} days</p>
+          </div>
           <Meter
+            fill="bg-ink"
+            track="bg-paper/70"
             rows={[
               ["Signed up", f.signed_up, f.signed_up],
               ["Opened a video", f.opened, f.signed_up],
@@ -181,46 +212,103 @@ function Overview({ s, m, days }: { s: Stats; m: More; days: number }) {
               ["Came back another day", f.returned, f.signed_up],
             ]}
           />
+        </section>
+
+        <Surface title="How recaps score" sub={`${n(graded)} graded in the period`}>
+          {graded ? (
+            <Ring
+              total={graded}
+              parts={[
+                ["85 and up", s.scores.great, 1],
+                ["70 to 84", s.scores.good, 0.7],
+                ["50 to 69", s.scores.mid, 0.45],
+                ["Under 50", s.scores.low, 0.22],
+              ]}
+            />
+          ) : (
+            <Empty title="No graded recaps yet." hint="Scores show up here once people finish a video and write what they remember." />
+          )}
         </Surface>
-        <Surface title="How recaps score" sub="Graded recaps in the period">
-          <Meter
-            rows={[
-              ["85 and up", s.scores.great, total(s.scores)],
-              ["70 to 84", s.scores.good, total(s.scores)],
-              ["50 to 69", s.scores.mid, total(s.scores)],
-              ["Under 50", s.scores.low, total(s.scores)],
-            ]}
-          />
+
+        <Surface title="Growth" sub="Sign-ups and videos opened per day">
+          <div className="flex flex-col gap-6">
+            <Mini label="Sign-ups" total={s.users_new}>
+              <Bars unit="sign-ups" days={s.by_day} pick={(d) => d.signups} height="h-16" bare />
+            </Mini>
+            <Mini label="Videos opened" total={s.videos_opened}>
+              <Bars unit="videos" days={s.by_day} pick={(d) => d.videos} height="h-16" bare />
+            </Mini>
+          </div>
+        </Surface>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Surface title="Latest feedback" sub={todo.length ? `${n(todo.length)} still to handle` : "All handled"} more={href({ tab: "feedback", sort: "", show: "" })}>
+          {todo.length ? (
+            <ul className="flex flex-col">
+              {todo.slice(0, 3).map((x) => (
+                <li key={x.id} className="flex flex-col gap-1 border-b border-line py-3 last:border-0">
+                  <p className="line-clamp-2 leading-normal break-words">{x.message}</p>
+                  <p className="truncate text-sm text-muted">
+                    {when(x.at)} · {x.page ?? "unknown page"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty title="All caught up." hint="New messages from the Feedback button land here first." />
+          )}
+        </Surface>
+        <Surface title="Latest issues" sub={`${n(s.grading_errors)} grading, ${n(s.client_errors)} in the app`} more={href({ tab: "issues", sort: "", show: "" })}>
+          {s.issues.length ? (
+            <ul className="flex flex-col">
+              {s.issues.slice(0, 3).map((i, k) => (
+                <li key={k} className="flex flex-col gap-1 border-b border-line py-3 last:border-0">
+                  <p className="line-clamp-2 leading-normal break-words">{i.detail ?? "No message"}</p>
+                  <p className="flex min-w-0 gap-2 text-sm text-muted">
+                    <span className={`shrink-0 rounded-full px-2 ${i.kind === "grading" ? "bg-sun-soft text-ink" : "bg-bad-soft text-bad"}`}>
+                      {i.kind === "grading" ? "Grading" : "App error"}
+                    </span>
+                    <span className="truncate">{i.place}</span>
+                    <span className="ml-auto shrink-0">{when(i.at)}</span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty title="Nothing went wrong in this period." hint="Failed gradings and app errors will show up here." />
+          )}
         </Surface>
       </div>
     </>
   );
 }
 
-// A headline number with its change: ↑/↓ and a percent (or points, for the score). The arrow carries the direction,
-// so it never relies on color alone.
-function Hero({ label, value, prev, note, tone, points }: { label: string; value: number | null; prev: number | null; note: string; tone?: string; points?: boolean }) {
-  let change: React.ReactNode = <span className="text-muted">no earlier data</span>;
-  if (value !== null && prev !== null && (prev > 0 || points)) {
-    const diff = points ? value - prev : Math.round(((value - prev) / prev) * 100);
-    change =
-      diff === 0 ? (
-        <span className="text-muted">same as before</span>
-      ) : (
-        <span className={diff > 0 ? "text-good" : "text-bad"}>
-          {diff > 0 ? "↑" : "↓"} {Math.abs(diff)}
-          {points ? " pts" : "%"}
-        </span>
-      );
-  } else if (value && prev === 0) change = <span className="text-good">↑ new</span>;
+// The change against the period before: ↑/↓ and a percent (or points, for the score). The arrow carries the
+// direction, so it never relies on color alone.
+function Change({ value, prev, points, dark }: { value: number | null; prev: number | null; points?: boolean; dark?: boolean }) {
+  const muted = dark ? "text-night-muted" : "text-muted";
+  const [up, down] = dark ? ["text-good-n", "text-bad-n"] : ["text-good", "text-bad"];
+  if (value === null || prev === null) return <span className={`text-sm ${muted}`}>no earlier data</span>;
+  if (!points && prev === 0) return value ? <span className={`text-sm ${up}`}>↑ new</span> : <span className={`text-sm ${muted}`}>none before either</span>;
+  const diff = points ? value - prev : Math.round(((value - prev) / prev) * 100);
+  if (!diff) return <span className={`text-sm ${muted}`}>same as before</span>;
   return (
-    <div className="flex flex-col gap-1 border-line p-6 max-lg:not-last:border-b lg:not-last:border-r">
-      <dt className="text-sm text-muted">{label}</dt>
-      <dd className={`text-display font-semibold tabular-nums ${tone ?? ""}`}>{value === null ? "–" : n(value)}</dd>
-      <dd className="flex flex-wrap gap-x-2 text-sm">
-        {change}
-        <span className="text-muted">· {note}</span>
-      </dd>
+    <span className={`text-sm tabular-nums ${diff > 0 ? up : down}`}>
+      {diff > 0 ? "↑" : "↓"} {Math.abs(diff)}
+      {points ? " pts" : "%"}
+    </span>
+  );
+}
+
+function Mini({ label, total: t, children }: { label: string; total: number; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="flex items-baseline justify-between gap-4">
+        <span className="text-sm text-muted">{label}</span>
+        <span className="font-semibold tabular-nums">{n(t)}</span>
+      </p>
+      {children}
     </div>
   );
 }
@@ -289,9 +377,15 @@ function Users({ s, users, sort, href }: { s: Stats; users: User[]; sort?: strin
 function Traffic({ s }: { s: Stats }) {
   return (
     <>
-      <Surface title="Page views per day" sub={`${n(s.views)} views from ${n(s.visitors)} visitors`}>
-        <Bars unit="views" days={s.by_day} pick={(d) => d.views} height="h-48" />
-      </Surface>
+      <section className="rise flex min-w-0 flex-col gap-8 rounded-hero bg-night p-6 text-night-ink sm:p-8">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold">Page views per day</h2>
+          <p className="text-sm text-night-muted">
+            {n(s.views)} views from {n(s.visitors)} visitors
+          </p>
+        </div>
+        <Bars dark unit="views" days={s.by_day} pick={(d) => d.views} height="h-48" />
+      </section>
       <div className="grid gap-8 lg:grid-cols-2">
         <Surface title="Most opened pages" sub="Counted in visits">
           <Top rows={s.top_pages.map((p) => [p.path, p.n])} empty="No page views yet." />
@@ -450,12 +544,19 @@ function FeedbackList({ notes, show = "open", href }: { notes: Note[]; show?: st
 
 // ---- Pieces ----
 
-function Surface({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
+function Surface({ title, sub, more, children }: { title: string; sub?: string; more?: string; children: React.ReactNode }) {
   return (
-    <section className="rise flex min-w-0 flex-col gap-5 rounded-panel bg-paper p-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold">{title}</h2>
-        {sub && <p className="text-sm text-muted">{sub}</p>}
+    <section className="rise flex min-w-0 flex-col gap-5 rounded-hero bg-paper p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h2 className="text-xl font-semibold">{title}</h2>
+          {sub && <p className="text-sm text-muted">{sub}</p>}
+        </div>
+        {more && (
+          <Link href={more} className="shrink-0 rounded-full bg-canvas px-3 py-1.5 text-sm transition-colors hover:bg-ink hover:text-paper">
+            See all
+          </Link>
+        )}
       </div>
       {children}
     </section>
@@ -471,52 +572,105 @@ function Empty({ title, hint }: { title: string; hint: string }) {
   );
 }
 
-// One series per chart (never two scales on one), columns growing from one baseline with a 2px gap. Hovering a day
-// shows its value; the table under it has every number.
-function Bars({ unit, days, pick, height }: { unit: string; days: Day[]; pick: (d: Day) => number; height: string }) {
+// One series per chart (never two scales on one), columns growing from one baseline with a 2px gap. The busiest day
+// is picked out and labeled; hovering any day shows its value, and the table under it has every number. `dark` is
+// for the night surface; `bare` drops the axis labels and table for the small charts.
+function Bars({ unit, days, pick, height, dark, bare }: { unit: string; days: Day[]; pick: (d: Day) => number; height: string; dark?: boolean; bare?: boolean }) {
   const values = days.map(pick);
   const max = Math.max(1, ...values);
+  const peak = values.indexOf(Math.max(...values));
+  const [bar, top, line, muted, tip] = dark
+    ? ["bg-sky-2/80", "bg-sun", "border-night-2", "text-night-muted", "bg-paper text-ink"]
+    : ["bg-sky-2", "bg-link", "border-line", "text-muted", "bg-ink text-paper"];
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative pt-6">
-        <span className="absolute top-0 left-0 text-sm text-muted tabular-nums">{n(max)}</span>
-        <div className={`flex ${height} items-end gap-[2px] border-b border-line`}>
+      <div className={`relative ${bare ? "" : "pt-8"}`}>
+        <div className={`flex ${height} items-end gap-[2px] border-b ${line}`}>
           {days.map((d, i) => (
             <div key={d.d} className="group relative flex h-full flex-1 items-end justify-center">
               <div
-                className="w-full max-w-6 rounded-t-[4px] bg-link transition-opacity group-hover:opacity-80"
-                style={{ height: values[i] ? `${Math.max(2, (values[i] / max) * 100)}%` : 0 }}
-              />
-              <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 rounded-media bg-ink px-3 py-2 text-sm whitespace-nowrap text-paper group-hover:block">
+                className={`relative w-full max-w-6 rounded-t-[4px] transition-opacity group-hover:opacity-80 ${i === peak && values[i] ? top : bar}`}
+                style={{ height: values[i] ? `${Math.max(3, (values[i] / max) * 100)}%` : 0 }}
+              >
+                {!bare && i === peak && values[i] > 0 && (
+                  <span className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-full bg-sun px-2 text-sm font-semibold whitespace-nowrap text-ink tabular-nums group-hover:hidden">
+                    {n(values[i])}
+                  </span>
+                )}
+              </div>
+              <span className={`pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 rounded-media px-3 py-2 text-sm whitespace-nowrap group-hover:block ${tip}`}>
                 {day(d.d)}: <span className="font-semibold tabular-nums">{n(values[i])}</span> {unit}
               </span>
             </div>
           ))}
         </div>
-        <div className="mt-2 flex justify-between text-sm text-muted">
+        <div className={`mt-2 flex justify-between text-sm ${muted}`}>
           <span>{day(days[0].d)}</span>
+          {!bare && peak >= 0 && values[peak] > 0 && <span>Busiest: {day(days[peak].d)}</span>}
           <span>{day(days[days.length - 1].d)}</span>
         </div>
       </div>
-      <details className="text-sm">
-        <summary className="cursor-pointer text-muted transition-colors hover:text-ink">Show as a table</summary>
-        <table className="mt-2 w-full tabular-nums">
-          <tbody>
-            {days.map((d, i) => (
-              <tr key={d.d} className="border-b border-line">
-                <td className="py-1 text-muted">{day(d.d)}</td>
-                <td className="py-1 text-right">{n(values[i])}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
+      {!bare && (
+        <details className="text-sm">
+          <summary className={`cursor-pointer transition-colors ${muted} ${dark ? "hover:text-night-ink" : "hover:text-ink"}`}>Show as a table</summary>
+          <table className="mt-2 w-full tabular-nums">
+            <tbody>
+              {days.map((d, i) => (
+                <tr key={d.d} className={`border-b ${line}`}>
+                  <td className={`py-1 ${muted}`}>{day(d.d)}</td>
+                  <td className="py-1 text-right">{n(values[i])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
+    </div>
+  );
+}
+
+// Score bands as one ring in a single hue, darker for higher scores (ordered, so sequential), with a 2px gap between
+// segments and a legend that carries every number.
+function Ring({ parts, total: t }: { parts: [string, number, number][]; total: number }) {
+  const r = 42;
+  const c = 2 * Math.PI * r;
+  const lens = parts.map(([, v]) => (v / t) * c);
+  const starts = lens.map((_, i) => lens.slice(0, i).reduce((x, y) => x + y, 0));
+  return (
+    <div className="flex flex-wrap items-center gap-6">
+      <div className="relative size-36 shrink-0">
+        <svg viewBox="0 0 100 100" className="size-full -rotate-90 text-link" aria-hidden>
+          <circle cx="50" cy="50" r={r} fill="none" strokeWidth="12" className="stroke-panel" />
+          {parts.map(([label, v, o], i) =>
+            v ? (
+              <circle key={label} cx="50" cy="50" r={r} fill="none" stroke="currentColor" strokeOpacity={o} strokeWidth="12"
+                strokeDasharray={`${Math.max(0, lens[i] - 2)} ${c}`} strokeDashoffset={-starts[i]} />
+            ) : null,
+          )}
+        </svg>
+        <span className="absolute inset-0 grid place-items-center text-center">
+          <span className="flex flex-col">
+            <span className="text-2xl font-semibold tabular-nums">{n(t)}</span>
+            <span className="text-sm text-muted">recaps</span>
+          </span>
+        </span>
+      </div>
+      <ul className="flex min-w-0 flex-1 flex-col gap-2">
+        {parts.map(([label, v, o]) => (
+          <li key={label} className="flex items-center gap-3">
+            <span aria-hidden className="size-3 shrink-0 rounded-full bg-link" style={{ opacity: o }} />
+            <span className="min-w-0 flex-1 truncate">{label}</span>
+            <span className="font-semibold tabular-nums">{n(v)}</span>
+            <span className="w-10 text-right text-sm text-muted tabular-nums">{pct(v, t)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
 // Horizontal bars against a shared whole: a funnel step or a share of recaps.
-function Meter({ rows }: { rows: [string, number, number][] }) {
+function Meter({ rows, fill = "bg-link", track = "bg-panel" }: { rows: [string, number, number][]; fill?: string; track?: string }) {
   return (
     <ul className="flex flex-col gap-4">
       {rows.map(([label, v, whole]) => (
@@ -524,11 +678,11 @@ function Meter({ rows }: { rows: [string, number, number][] }) {
           <span className="flex justify-between gap-4">
             <span>{label}</span>
             <span className="tabular-nums">
-              <span className="font-semibold">{n(v)}</span> <span className="text-muted">{pct(v, whole)}</span>
+              <span className="font-semibold">{n(v)}</span> <span className="opacity-70">{pct(v, whole)}</span>
             </span>
           </span>
-          <span className="block h-3 rounded-full bg-panel">
-            <span className="block h-full rounded-full bg-link" style={{ width: whole ? `${(v / whole) * 100}%` : 0 }} />
+          <span className={`block h-3 rounded-full ${track}`}>
+            <span className={`block h-full rounded-full ${fill}`} style={{ width: whole ? `${(v / whole) * 100}%` : 0 }} />
           </span>
         </li>
       ))}
