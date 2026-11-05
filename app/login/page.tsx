@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { siGithub, siGoogle } from "simple-icons";
 import { safeNext } from "@/lib/safe-next";
-import { LOCAL_SUPABASE, supabase } from "@/lib/supabase";
+import { cookies } from "next/headers";
+import { LOCAL_SUPABASE, STAY_SIGNED_OUT, supabase, TEST_USER } from "@/lib/supabase";
 import { Label } from "../ui";
 
 // Kept out of search: just two sign-in buttons, and every ?next= link would be another copy of it. Links are still followed.
@@ -41,6 +42,7 @@ async function testSignIn(formData: FormData) {
   if (!LOCAL_SUPABASE) redirect("/login");
   const next = safeNext(formData.get("next"));
   const { error } = await (await supabase()).auth.signInWithPassword({ email: String(formData.get("email")), password: String(formData.get("password")) });
+  if (!error) (await cookies()).delete(STAY_SIGNED_OUT);
   redirect(error ? `/login?error=test&next=${encodeURIComponent(next)}` : next);
 }
 
@@ -75,8 +77,8 @@ export default async function Login({ searchParams }: Props) {
           <form action={testSignIn} className="flex flex-col gap-3 border-t border-line pt-6">
             <p className="text-sm text-muted">Local test account (only on your machine)</p>
             <input type="hidden" name="next" value={safeNext(next)} />
-            <input name="email" type="email" defaultValue="test@focuslearn.dev" aria-label="Email" className="min-h-12 rounded-full border border-line bg-white px-4 outline-none focus:border-ink" />
-            <input name="password" type="password" defaultValue="focuslearn" aria-label="Password" className="min-h-12 rounded-full border border-line bg-white px-4 outline-none focus:border-ink" />
+            <input name="email" type="email" defaultValue={TEST_USER.email} aria-label="Email" className="min-h-12 rounded-full border border-line bg-white px-4 outline-none focus:border-ink" />
+            <input name="password" type="password" defaultValue={TEST_USER.password} aria-label="Password" className="min-h-12 rounded-full border border-line bg-white px-4 outline-none focus:border-ink" />
             <button className="btn justify-center">Sign in as test user</button>
           </form>
         )}

@@ -4,7 +4,8 @@ import { Bricolage_Grotesque } from "next/font/google";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DESCRIPTION, SITE } from "@/lib/site";
-import { currentUser, supabase } from "@/lib/supabase";
+import { cookies } from "next/headers";
+import { currentUser, LOCAL_SUPABASE, STAY_SIGNED_OUT, supabase } from "@/lib/supabase";
 import Feedback from "./feedback";
 import Track from "./track";
 import NavLinks, { PasteButton, SectionLink } from "./nav-links";
@@ -50,6 +51,7 @@ async function sendFeedback(_prev: "sent" | "error" | null, formData: FormData) 
 async function signOut() {
   "use server";
   await (await supabase()).auth.signOut();
+  if (LOCAL_SUPABASE) (await cookies()).set(STAY_SIGNED_OUT, "1", { path: "/" });
   redirect("/");
 }
 

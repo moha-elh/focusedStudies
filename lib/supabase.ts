@@ -23,6 +23,11 @@ export async function currentUser() {
   return data?.claims ?? null;
 }
 
-// True only when the app talks to the Supabase running on this machine (`npm run dev:local`). Turns on the
+// True only when the app talks to the Supabase running on this machine (`npm run dev`). Turns on the
 // email + password test sign-in, which the production project never accepts.
 export const LOCAL_SUPABASE = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(process.env.SUPABASE_URL ?? "");
+
+// The seeded local account (supabase/seed.sql). Only ever used against the local database.
+export const TEST_USER = { email: "test@focuslearn.dev", password: "focuslearn" };
+// Set by signing out locally, so you can look at the signed-out pages instead of being signed straight back in.
+export const STAY_SIGNED_OUT = "local-signed-out";
