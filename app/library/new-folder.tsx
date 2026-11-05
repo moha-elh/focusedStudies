@@ -4,6 +4,7 @@ import { useId } from "react";
 import { useFormStatus } from "react-dom";
 import { Spinner, Thumb } from "../ui";
 import { createFolder } from "./actions";
+import ColorWheel from "./color-wheel";
 import { FOLDER_COLORS, type FolderColor } from "./colors";
 
 type Video = {
@@ -62,6 +63,7 @@ export default function NewFolder({ videos }: { videos: Video[] }) {
                 />
               </label>
             ))}
+            <ColorWheel />
           </fieldset>
           {videos.length > 0 && (
             <fieldset className="flex min-h-0 flex-col gap-2">
