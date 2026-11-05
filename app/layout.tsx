@@ -74,7 +74,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             {/* Kept smaller than the play button so it does not compete with it. */}
             {user ? (
               <form action={signOut}>
-                <button className="inline-flex min-h-9 items-center rounded-full bg-paper px-4 text-sm font-semibold shadow-[0_2px_8px_rgb(26_33_48/0.08)] transition-colors hover:bg-sky">
+                <button className="inline-flex min-h-9 items-center rounded-full bg-paper px-4 text-sm font-semibold shadow-[0_2px_8px_rgb(26_33_48/0.08)] transition-colors duration-200 hover:bg-ink hover:text-paper">
                   Sign out
                 </button>
               </form>

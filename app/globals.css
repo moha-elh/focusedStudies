@@ -77,8 +77,10 @@
   color: var(--color-paper);
   font-weight: 600;
   white-space: nowrap;
-  transition: background-color 0.15s;
-  &:hover { background: #2b3650; }
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  /* Hover lifts the button onto a soft shadow; pressing pushes it back down. */
+  &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgb(26 33 48 / 0.24); }
+  &:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
   &:disabled { opacity: 0.6; }
 }
 
@@ -97,8 +99,10 @@ html {
   border-radius: 999px;
   border: 1px solid var(--color-ink);
   white-space: nowrap;
-  transition: background-color 0.15s;
-  &:hover { background: var(--color-paper); }
+  transition: background-color 0.2s ease-out, color 0.2s ease-out;
+  /* Hover fills it with ink, so it clearly answers the pointer (icons use currentColor and flip too). */
+  &:hover:not(:disabled) { background: var(--color-ink); color: var(--color-paper); }
+  &:active:not(:disabled) { background: #2b3650; }
   &:disabled { opacity: 0.5; }
 }
 
@@ -204,6 +208,7 @@ body {
   html { scroll-behavior: auto; }
   .lift { transition: none; }
   .lift:hover { transform: none; }
+  .btn:hover:not(:disabled), .btn:active:not(:disabled) { transform: none; }
   .ripple, .petal { display: none; }
 }
 
