@@ -62,8 +62,8 @@ export async function setFolder(ids: string[], folder: string | null) {
 }
 
 // Folder names, including empty ones; folders that have videos are also found on the videos themselves.
-export async function listFolders(): Promise<{ name: string; color: string | null }[]> {
-  return check(await (await supabase()).from("folders").select("name, color")) ?? [];
+export async function listFolders(): Promise<{ name: string; color: string | null; parent: string | null }[]> {
+  return check(await (await supabase()).from("folders").select("name, color, parent")) ?? [];
 }
 
 // Creates the folder's row if it only existed on its videos.
@@ -71,9 +71,9 @@ export async function setFolderColor(name: string, color: string | null) {
   check(await (await supabase()).from("folders").upsert({ name, color }, { onConflict: "user_id,name" }));
 }
 
-// Already there is fine (user_id comes from the login token, like sessions).
-export async function addFolder(name: string, color: string | null = null) {
-  check(await (await supabase()).from("folders").upsert({ name, color }, { onConflict: "user_id,name", ignoreDuplicates: true }));
+// Already there is fine (user_id comes from the login token, like sessions). parent puts it inside another folder.
+export async function addFolder(name: string, color: string | null = null, parent: string | null = null) {
+  check(await (await supabase()).from("folders").upsert({ name, color, parent }, { onConflict: "user_id,name", ignoreDuplicates: true }));
 }
 
 // Row-level security limits the delete to the caller's own row; someone else's id just deletes nothing.

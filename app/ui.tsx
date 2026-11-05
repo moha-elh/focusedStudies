@@ -74,10 +74,10 @@ export function Spinner() {
 }
 
 // "Back to library": a pill with the arrow in its own circle, which slides back a little on hover.
-export function BackToLibrary({ className = "" }: { className?: string }) {
+export function BackToLibrary({ className = "", href = "/library", label = "Back to library" }: { className?: string; href?: string; label?: string }) {
   return (
     <Link
-      href="/library"
+      href={href}
       className={`group inline-flex w-fit items-center gap-3 rounded-full bg-paper py-1.5 pr-5 pl-1.5 text-sm font-semibold shadow-[0_2px_8px_rgb(26_33_48/0.08)] transition-colors duration-200 hover:bg-ink hover:text-paper ${className}`}
     >
       <span aria-hidden className="grid size-8 place-items-center rounded-full bg-canvas text-ink transition-transform duration-200 group-hover:-translate-x-0.5">
@@ -85,7 +85,7 @@ export function BackToLibrary({ className = "" }: { className?: string }) {
           <path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
-      Back to library
+      <span className="max-w-[60vw] truncate">{label}</span>
     </Link>
   );
 }
