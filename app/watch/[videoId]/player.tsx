@@ -193,19 +193,25 @@ export default function Player({ videoId, title, start, previousRecap, previousN
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Hide the cursor after 3s still, like on youtube.com. YouTube's embed never does (its control layer keeps
-  // cursor:auto) and our page can't style inside its iframe, so once idle we lay a clear cursor:none layer over it.
-  // The first move or click removes the layer, so YouTube's buttons work again. The wheel over it changes volume.
-  // ponytail: we can't see the mouse moving over YouTube's iframe, so "still" means 3s since the layer was last
-  // removed or YouTube was last clicked; a mouse kept moving for 3s+ blinks out for one frame.
+  // Hide the cursor after 3s still, like on youtube.com, while keeping YouTube's own controls. Our page can't style
+  // inside YouTube's iframe, and once the mouse has been over it Chrome keeps the iframe's cursor until the next real
+  // move, so a cursor:none layer alone doesn't hide it. Pointer lock does: the browser hides the cursor wherever it is.
+  // The first real move or a click releases it and the cursor comes back where it was, over YouTube's
+  // controls as before. The clear layer stays as a fallback for when the browser refuses the lock.
+  // ponytail: we can't see the mouse moving over YouTube's iframe, so "still" means 3s since the cursor was last
+  // shown or YouTube was last clicked; a mouse kept moving for 3s+ blinks out for a moment.
   useEffect(() => {
     if (!full) return;
     let hidden = false;
     let anchor: { x: number; y: number } | null = null; // where the cursor sat when the layer appeared
+    let moved = 0; // how far the mouse has moved while locked
     const hide = (v: boolean) => {
       hidden = v;
       anchor = null;
+      moved = 0;
       setIdle(v);
+      if (v) Promise.resolve(stage.current?.requestPointerLock?.()).catch(() => {});
+      else if (document.pointerLockElement) document.exitPointerLock();
     };
     const arm = () => {
       clearTimeout(hideTimer.current);
@@ -217,26 +223,41 @@ export default function Player({ videoId, title, start, previousRecap, previousN
     };
     const onActivity = (e: Event) => {
       if (!hidden) return arm();
-      if (e instanceof WheelEvent) return changeVolume(-e.deltaY / 20);
-      // Chrome sends a mousemove when the layer appears under a still cursor (what's under it changed). Counting that
-      // as a move removed the layer at once, so after the first real move the cursor never hid again. So the first
-      // move only notes where the cursor is, and it takes a real move of a few pixels from there to show it.
+      if (e instanceof WheelEvent) return changeVolume(-e.deltaY / 20); // volume, cursor stays hidden
       if (e instanceof MouseEvent && e.type === "mousemove") {
-        if (!anchor) return void (anchor = { x: e.screenX, y: e.screenY });
-        if (Math.hypot(e.screenX - anchor.x, e.screenY - anchor.y) < 4) return;
+        if (document.pointerLockElement) {
+          // Locked, the cursor's position stays put and only the movement is reported.
+          moved += Math.abs(e.movementX) + Math.abs(e.movementY);
+          if (moved < 4) return;
+        } else {
+          // Chrome sends a mousemove when the layer appears under a still cursor, so the first move only notes where
+          // the cursor is and it takes a real move of a few pixels from there to show it.
+          if (!anchor) return void (anchor = { x: e.screenX, y: e.screenY });
+          if (Math.hypot(e.screenX - anchor.x, e.screenY - anchor.y) < 4) return;
+        }
       }
       hide(false);
       arm();
     };
+    // Esc releases the lock (and leaves fullscreen); show the cursor if that happens while hidden.
+    const onLockChange = () => {
+      if (!document.pointerLockElement && hidden) {
+        hide(false);
+        arm();
+      }
+    };
     const events = ["mousemove", "mousedown", "wheel"] as const;
     events.forEach((t) => document.addEventListener(t, onActivity, true));
+    document.addEventListener("pointerlockchange", onLockChange);
     window.addEventListener("blur", arm);
     arm();
     centerScroll();
     return () => {
       clearTimeout(hideTimer.current);
       events.forEach((t) => document.removeEventListener(t, onActivity, true));
+      document.removeEventListener("pointerlockchange", onLockChange);
       window.removeEventListener("blur", arm);
+      if (document.pointerLockElement) document.exitPointerLock();
       setIdle(false);
     };
     // changeVolume only touches refs and state setters, so a stale copy behaves the same.
