@@ -44,7 +44,8 @@ const SYSTEM =
   "and leave a list empty rather than padding it. Write feedback directly to the learner (\"you\").";
 
 // Groq's OpenAI-compatible API with strict JSON-schema output; the reply is still validated before it's saved.
-// Groq's free tier caps tokens per minute (8k), so long transcripts get a 413; the caller falls back to Claude.
+// Groq's free tier caps tokens per minute (8k), so long transcripts get a 413, shown as "too long".
+// ponytail: at launch, fall back to Claude (gradeWithClaude) on TooLarge, or grade in chunks.
 class TooLarge extends Error {}
 
 async function gradeWithGroq(content: string) {
@@ -100,12 +101,7 @@ export async function POST(req: Request) {
   else {
     const content = `<video_title>${title ?? "unknown"}</video_title>\n<transcript>\n${transcript}\n</transcript>\n\n<learner_recap>\n${recap}\n</learner_recap>`;
     try {
-      const graded = process.env.GROQ_API_KEY
-        ? await gradeWithGroq(content).catch((e) => {
-            if (e instanceof TooLarge && process.env.ANTHROPIC_API_KEY) return gradeWithClaude(content);
-            throw e;
-          })
-        : await gradeWithClaude(content);
+      const graded = process.env.GROQ_API_KEY ? await gradeWithGroq(content) : await gradeWithClaude(content);
       feedback = graded
         ? { ...graded, covered: graded.covered.slice(0, MAX_POINTS), missed: graded.missed.slice(0, MAX_POINTS), incorrect: graded.incorrect.slice(0, MAX_POINTS) }
         : { error: "The AI couldn't grade this recap. Your notes are saved." };
