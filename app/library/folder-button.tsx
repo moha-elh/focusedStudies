@@ -4,6 +4,7 @@ import { useId } from "react";
 import { useFormStatus } from "react-dom";
 import { Spinner } from "../ui";
 import { moveSession } from "./actions";
+import { ColorChoice } from "./color-wheel";
 
 // Files a video into a folder: pick an existing one, type a new name, or take it out. Same native popover as RemoveButton.
 export default function FolderButton({ id, folder, folders, className }: { id: string; folder: string | null; folders: string[]; className?: string }) {
@@ -44,16 +45,19 @@ export default function FolderButton({ id, folder, folders, className }: { id: s
               ))}
             </ul>
           )}
-          <form action={action} onSubmit={close} className="flex gap-2">
-            <input
-              name="folder"
-              required
-              maxLength={40}
-              aria-label="New folder"
-              placeholder="New folder"
-              className="min-h-12 min-w-0 flex-1 rounded-full border border-line bg-white px-4 outline-none placeholder:text-muted focus:border-ink"
-            />
-            <Submit />
+          <form action={action} onSubmit={close} className="flex flex-col gap-4">
+            <div className="flex gap-2">
+              <input
+                name="folder"
+                required
+                maxLength={40}
+                aria-label="New folder"
+                placeholder="New folder"
+                className="min-h-12 min-w-0 flex-1 rounded-full border border-line bg-white px-4 outline-none placeholder:text-muted focus:border-ink"
+              />
+              <Submit />
+            </div>
+            <ColorChoice />
           </form>
           {folder && (
             <form action={action} onSubmit={close}>

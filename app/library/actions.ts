@@ -9,7 +9,10 @@ const folderName = (form: FormData) => String(form.get("folder") ?? "").trim().r
 
 // An empty name takes the video out of its folder.
 export async function moveSession(id: string, form: FormData) {
-  await setFolder([id], folderName(form));
+  const name = folderName(form);
+  // Typed a new folder (the form with a color choice): give it that color. An existing folder keeps its own.
+  if (name && form.has("color")) await addFolder(name, pickedColor(form));
+  await setFolder([id], name);
   revalidatePath("/library");
 }
 
