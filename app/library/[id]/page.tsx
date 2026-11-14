@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { Feedback, FeedbackPoint } from "@/app/api/review/route";
-import { getSession, type Note } from "@/lib/db";
+import type { Feedback, FeedbackPoint } from "@/lib/grade";
+import { getSession, isAdmin, type Note } from "@/lib/db";
 import { toMarkdown, toPoint } from "@/lib/export";
 import { fmtTime } from "@/lib/youtube";
 import { BackToLibrary, ScoreRing, scoreColor, Thumb } from "../../ui";
 import RemoveButton from "../remove-button";
 import CopyButton from "./copy-button";
+import RegradeButton from "./regrade-button";
+import { regrade } from "./actions";
 
 // Each result type gets its own shape as well as its own color, so they read apart without color.
 const SECTIONS = [
@@ -110,8 +112,15 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
         </div>
       </header>
 
-      {fb && "error" in fb ? (
+      {fb && "error" in fb && !(await isAdmin()) ? (
         <p className="rounded-panel bg-paper p-6 text-muted">{fb.error}</p>
+      ) : fb && "error" in fb ? (
+        // ponytail: admin-only preview of "Grade again"; drop the branch above once it's validated.
+        // Captions and graders fail now and then; the recap is saved, so it can simply be graded again.
+        <form action={regrade.bind(null, s.id)} className="flex flex-col gap-4 rounded-panel bg-paper p-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="leading-normal text-muted">{fb.error}</p>
+          <RegradeButton />
+        </form>
       ) : fb ? (
         <>
           <section className="rise flex flex-col gap-8 rounded-hero bg-night p-6 text-night-ink sm:flex-row sm:items-center sm:p-10 [--d:160ms]">

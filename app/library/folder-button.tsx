@@ -8,14 +8,15 @@ import { ColorChoice } from "./color-wheel";
 
 // Files a video into a folder: pick an existing one, type a new name, or take it out. Same native popover as RemoveButton.
 // `folders` is [name, path] pairs; the path ("Courses / Python") tells nested folders apart.
-export default function FolderButton({ id, folder, folders, className }: { id: string; folder: string | null; folders: [string, string][]; className?: string }) {
+export default function FolderButton({ id, folder, folders, className, preview = false }: { id: string; folder: string | null; folders: [string, string][]; className?: string; preview?: boolean }) {
   const dialog = useId();
   const action = moveSession.bind(null, id);
   const close = () => document.getElementById(dialog)?.hidePopover();
+  const label = preview && folder ? "Move or remove from folder" : "Move to folder";
 
   return (
     <>
-      <button popoverTarget={dialog} aria-label="Move to folder" title="Move to folder" className={className}>
+      <button popoverTarget={dialog} aria-label={label} title={label} className={className}>
         <svg viewBox="0 0 24 24" aria-hidden className="size-5">
           <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2h9A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
         </svg>
@@ -60,12 +61,20 @@ export default function FolderButton({ id, folder, folders, className }: { id: s
             </div>
             <ColorChoice />
           </form>
-          {folder && (
+          {!preview && folder && (
             <form action={action} onSubmit={close}>
               <button className="text-sm text-muted transition-colors hover:text-ink">Take out of “{folder}”</button>
             </form>
           )}
         </div>
+        {/* A real button, not a footnote: people didn't find the old text link. No folder field = out of every folder. */}
+        {preview && folder && (
+          <form action={action} onSubmit={close} className="mt-6 border-t border-line pt-6">
+            <button className="btn-outline w-full max-w-full">
+              <span className="truncate">Remove from “{folder}”</span>
+            </button>
+          </form>
+        )}
       </div>
     </>
   );
