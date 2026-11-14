@@ -33,7 +33,7 @@ type Stats = {
   issues: { kind: "grading" | "client"; at: string; detail: string | null; place: string }[];
 };
 type User = { email: string | null; joined: string; provider: string; active: string | null; videos: number; score: number | null };
-type Note = { id: string; message: string; page: string | null; at: string; signed_in: boolean; handled_at: string | null };
+type Note = { id: string; message: string; page: string | null; at: string; signed_in: boolean; handled_at: string | null; closed_at?: string | null };
 type More = {
   prev: {
     visitors: number;
@@ -74,6 +74,13 @@ async function markFeedback(id: string, handled: boolean) {
   revalidatePath("/admin");
 }
 
+// Closed = dismissed without acting on it (spam, duplicate, won't do). Separate from handled.
+async function closeFeedback(id: string, closed: boolean) {
+  "use server";
+  await (await supabase()).rpc("admin_close_feedback", { fid: id, closed });
+  revalidatePath("/admin");
+}
+
 // Only admins get here: admin_stats() and admin_more() refuse everyone else (supabase/migrations), and then this is a
 // plain 404, so the page doesn't even admit it exists. Signed-out visitors are sent to sign in by proxy.ts first.
 export default async function Admin({ searchParams }: { searchParams: Promise<Query> }) {
@@ -92,7 +99,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Qu
     if (p.get("days") === "30") p.delete("days");
     return `/admin${p.size ? `?${p}` : ""}`;
   };
-  const open = m.feedback.filter((f) => !f.handled_at).length;
+  const open = m.feedback.filter((f) => !f.handled_at && !f.closed_at).length;
 
   return (
     <main className="wrap flex flex-col pt-10 pb-24">
@@ -479,16 +486,18 @@ function Issues({ s, show = "all", href }: { s: Stats; show?: string; href: (q: 
 // ---- Feedback ----
 
 function FeedbackList({ notes, show = "open", href }: { notes: Note[]; show?: string; href: (q: Query) => string }) {
-  const done = notes.filter((f) => f.handled_at).length;
-  const rows = notes.filter((f) => show === "all" || (show === "handled" ? f.handled_at : !f.handled_at));
+  const state = (f: Note) => (f.closed_at ? "closed" : f.handled_at ? "handled" : "open");
+  const count = (v: string) => notes.filter((f) => state(f) === v).length;
+  const rows = notes.filter((f) => show === "all" || state(f) === show);
   return (
     <>
       <Filter
         show={show}
         href={href}
         options={[
-          ["open", "To do", notes.length - done],
-          ["handled", "Handled", done],
+          ["open", "To do", count("open")],
+          ["handled", "Handled", count("handled")],
+          ["closed", "Closed", count("closed")],
           ["all", "All", notes.length],
         ]}
       />
@@ -498,7 +507,7 @@ function FeedbackList({ notes, show = "open", href }: { notes: Note[]; show?: st
             {rows.map((f) => (
               <li key={f.id} className="flex flex-wrap items-start gap-x-6 gap-y-2 border-b border-line py-4 last:border-0">
                 <div className="flex min-w-0 flex-1 basis-80 flex-col gap-1">
-                  <p className={`leading-normal break-words ${f.handled_at ? "text-muted" : ""}`}>{f.message}</p>
+                  <p className={`leading-normal break-words ${state(f) !== "open" ? "text-muted" : ""}`}>{f.message}</p>
                   <p className="flex min-w-0 gap-2 text-sm text-muted">
                     <span className="truncate">{f.page ?? "unknown page"}</span>
                     <span aria-hidden>·</span>
@@ -507,16 +516,30 @@ function FeedbackList({ notes, show = "open", href }: { notes: Note[]; show?: st
                     <span className="shrink-0 tabular-nums">{when(f.at)}</span>
                   </p>
                 </div>
-                <form action={markFeedback.bind(null, f.id, !f.handled_at)}>
-                  <button className={`${f.handled_at ? "btn-outline" : "btn"} min-h-9 px-4 text-sm`}>
-                    {f.handled_at ? "Reopen" : "Mark as handled"}
-                  </button>
-                </form>
+                {state(f) === "open" ? (
+                  <div className="flex items-center gap-2">
+                    <form action={markFeedback.bind(null, f.id, true)}>
+                      <button className="btn min-h-9 px-4 text-sm">Mark as handled</button>
+                    </form>
+                    <form action={closeFeedback.bind(null, f.id, true)}>
+                      <button aria-label="Close without handling" title="Close without handling" className="grid size-9 place-items-center rounded-full text-muted transition-colors hover:bg-line hover:text-ink">
+                        <svg viewBox="0 0 24 24" aria-hidden className="size-4">
+                          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    </form>
+                  </div>
+                ) : (
+                  // A note is only ever handled or closed (both buttons sit on open notes), so Reopen undoes whichever it was.
+                  <form action={f.closed_at ? closeFeedback.bind(null, f.id, false) : markFeedback.bind(null, f.id, false)}>
+                    <button className="btn-outline min-h-9 px-4 text-sm">Reopen</button>
+                  </form>
+                )}
               </li>
             ))}
           </ul>
         ) : show === "open" && notes.length ? (
-          <Empty title="All caught up." hint="Every message has been handled. New ones land here first." />
+          <Empty title="All caught up." hint="Every message has been handled or closed. New ones land here first." />
         ) : (
           <Empty title="No feedback yet." hint="Messages sent with the Feedback button in the corner of every page land here." />
         )}

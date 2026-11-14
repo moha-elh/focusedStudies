@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { isAdmin } from "@/lib/db";
 import { DESCRIPTION, SITE } from "@/lib/site";
 import { cookies } from "next/headers";
 import { currentUser, LOCAL_SUPABASE, STAY_SIGNED_OUT, supabase } from "@/lib/supabase";
@@ -58,7 +59,7 @@ async function signOut() {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const user = await currentUser();
   // Only admins see the link; for everyone else is_admin() is false (or errors) and nothing renders.
-  const admin = user ? (await (await supabase()).rpc("is_admin")).data === true : false;
+  const admin = user ? await isAdmin() : false;
   return (
     // Browser extensions (Grammarly and others) add attributes to <html> and <body> before React loads;
     // ignore those. This only covers these two tags, so real mismatches inside the app are still reported.
