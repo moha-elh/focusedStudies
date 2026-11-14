@@ -148,6 +148,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
         <ul className={on ? "pt-2" : ""}>
           {sessions.map((s, i) => {
             const score = scoreOf(s.feedback);
+            const done = preview && !!s.recap;
             return (
               <DragRow
                 key={s.id}
@@ -160,17 +161,17 @@ export default async function Library({ searchParams }: { searchParams: Promise<
                   href={s.recap ? `/library/${s.id}` : `/watch/${s.video_id}`}
                   className="group grid min-w-0 flex-1 grid-cols-[auto_1fr_auto] items-center gap-4 px-0 py-5 transition-colors hover:bg-paper sm:grid-cols-[auto_1fr_auto_auto] sm:gap-8 sm:px-5"
                 >
-                  {/* Finished (recap written) gets a tag on the thumbnail; still-watching ones show the "Still watching" line instead. */}
+                  {/* Finished (recap written) turns gray with a tag, so the ones still in progress stand out; hovering brings the color back. */}
                   <span className="relative shrink-0 transition-transform duration-300 group-hover:scale-[1.03]">
-                    <Thumb videoId={s.video_id} className={`w-28 sm:w-52 ${preview && !s.recap ? "opacity-80" : ""}`} />
-                    {preview && s.recap && (
-                      <span className="absolute bottom-1.5 left-1.5 rounded-full bg-good px-2 py-0.5 text-xs font-semibold text-paper sm:bottom-2 sm:left-2 sm:px-2.5 sm:text-sm">
+                    <Thumb videoId={s.video_id} className={`w-28 transition-[filter] sm:w-52 ${done ? "grayscale group-hover:grayscale-0" : ""}`} />
+                    {done && (
+                      <span className="absolute bottom-1.5 left-1.5 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-paper sm:bottom-2 sm:left-2 sm:px-2.5 sm:text-sm">
                         Finished
                       </span>
                     )}
                   </span>
                   <div className="flex min-w-0 flex-col gap-1.5">
-                    <p className="line-clamp-2 font-semibold break-words sm:text-xl">{s.title ?? s.video_id}</p>
+                    <p className={`line-clamp-2 font-semibold break-words sm:text-xl ${done ? "text-muted" : ""}`}>{s.title ?? s.video_id}</p>
                     <p className="hidden truncate text-muted sm:block">
                       {s.recap || `Still watching · ${s.notes?.length ?? 0} ${s.notes?.length === 1 ? "note" : "notes"}`}
                     </p>
