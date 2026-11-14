@@ -52,7 +52,7 @@ Test: `node --experimental-strip-types lib/youtube.test.ts && node --experimenta
 
 ### Deploy (Vercel)
 1. Push to GitHub, then on vercel.com: Add New → Project → import this repo. Framework: Next.js (detected); no build settings to change.
-2. Environment variables (Project → Settings → Environment Variables): `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`. The secret key is not needed in production.
+2. Environment variables (Project → Settings → Environment Variables): `GROQ_API_KEY`, `SUPADATA_API_KEY` (dash.supadata.ai; YouTube blocks caption requests from Vercel, so without it every recap fails with "couldn't get this video's captions"), `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`. The secret key is not needed in production.
 3. Supabase → Authentication → URL Configuration: set Site URL to your Vercel URL (e.g. `https://focuslearn.vercel.app`) and add `https://<your-url>/**` to Redirect URLs. Keep the localhost entry for local dev.
 4. Apply new migrations with `npx supabase db push --remote` before each deploy that has them. Feedback from the in-app button lands in Table Editor → `feedback`.
 5. Google/GitHub sign-in needs nothing more for production: the providers call back to Supabase's URL, which doesn't change.

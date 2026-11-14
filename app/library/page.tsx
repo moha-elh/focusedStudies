@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { isAdmin, listFolders, listSessions } from "@/lib/db";
+import { listFolders, listSessions } from "@/lib/db";
 import { avgScore, BackToLibrary, Label, scoreColor, scoreOf, Thumb } from "../ui";
 import Folder from "./folder";
 import FolderButton from "./folder-button";
@@ -15,8 +15,7 @@ import type { Session } from "@/lib/db";
 // folders inside it, then its own videos; its tile and totals count everything inside it, subfolders included.
 // Drag a video onto a folder to move it in, or onto the back link to move it up a level.
 export default async function Library({ searchParams }: { searchParams: Promise<{ folder?: string }> }) {
-  const [all, rows, preview] = await Promise.all([listSessions(), listFolders(), isAdmin()]);
-  // ponytail: `preview` shows admins the new Finished tag and folder-removal wording first; drop it once they're validated.
+  const [all, rows] = await Promise.all([listSessions(), listFolders()]);
   const colors = new Map(rows.map((f) => [f.name, f.color]));
   const parents = new Map(rows.map((f) => [f.name, f.parent]));
   const folders = Map.groupBy(
@@ -115,11 +114,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
             <div className="mt-16 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-line pb-4">
               <h2 className="text-xl font-semibold">{on ? "Videos" : "Not in a folder"}</h2>
               <p className="text-sm text-muted">
-                {on
-                  ? preview
-                    ? `Drag a video onto “${up ? `Back to ${up}` : "Back to library"}”, or use its folder button, to take it out of this folder.`
-                    : `Drag a video onto a folder to move it in, or onto “${up ? `Back to ${up}` : "Back to library"}” to move it out.`
-                  : "Drag a video onto a folder to move it in."}
+                {on ? `Drag a video onto “${up ? `Back to ${up}` : "Back to library"}”, or use its folder button, to take it out of this folder.` : "Drag a video onto a folder to move it in."}
               </p>
             </div>
           )}
@@ -148,7 +143,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
         <ul className={on ? "pt-2" : ""}>
           {sessions.map((s, i) => {
             const score = scoreOf(s.feedback);
-            const done = preview && !!s.recap;
+            const done = !!s.recap;
             return (
               <DragRow
                 key={s.id}
@@ -185,7 +180,6 @@ export default async function Library({ searchParams }: { searchParams: Promise<
                 </Link>
                 {/* Shown on hover with a mouse, always on touch screens. */}
                 <FolderButton
-                  preview={preview}
                   id={s.id}
                   folder={s.folder ?? null}
                   folders={names.map((n): [string, string] => [n, path(n)])}
