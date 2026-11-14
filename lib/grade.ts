@@ -74,13 +74,34 @@ async function gradeWithClaude(content: string) {
   return res.parsed_output;
 }
 
+// YouTube blocks caption requests from cloud servers like Vercel's, so in production they come from Supadata
+// (SUPADATA_API_KEY), which fetches them for us. Without a key, or if Supadata fails, we ask YouTube directly,
+// which works from a home connection; it refuses now and then, so a failed fetch gets a second try.
+async function captions(videoId: string): Promise<{ text: string; offset: number }[]> {
+  const key = process.env.SUPADATA_API_KEY;
+  if (key) {
+    try {
+      // mode=native: only the video's own captions, never Supadata's paid AI transcription.
+      const url = `https://api.supadata.ai/v1/transcript?mode=native&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`;
+      const res = await fetch(url, { headers: { "x-api-key": key } });
+      const body = (await res.json()) as { content?: { text: string; offset: number }[]; jobId?: string; message?: string };
+      // Offsets are whole milliseconds, which timestampedTranscript reads as ms.
+      // ponytail: a 202 jobId (very long videos) isn't polled; it falls through to YouTube, poll it if that shows up in logs.
+      if (res.status === 200 && Array.isArray(body.content) && body.content.length)
+        return body.content.map((c) => ({ text: c.text, offset: Math.round(c.offset) }));
+      console.warn("supadata", videoId, res.status, body.message ?? body.jobId ?? "");
+    } catch (e) {
+      console.warn("supadata", videoId, e instanceof Error ? e.message : e);
+    }
+  }
+  return YoutubeTranscript.fetchTranscript(videoId).catch(() => YoutubeTranscript.fetchTranscript(videoId));
+}
+
 // Fetches the captions and grades the recap against them. Never throws: a problem becomes { error } feedback.
 export async function grade(videoId: string, recap: string) {
   const [title, transcript] = await Promise.all([
     fetchTitle(videoId).catch(() => null),
-    // YouTube refuses now and then, so one failed fetch gets a second try.
-    YoutubeTranscript.fetchTranscript(videoId)
-      .catch(() => YoutubeTranscript.fetchTranscript(videoId))
+    captions(videoId)
       .then((parts) => timestampedTranscript(parts))
       .catch((e) => {
         console.warn("transcript", videoId, e instanceof Error ? e.message : e);

@@ -8,11 +8,11 @@ import { ColorChoice } from "./color-wheel";
 
 // Files a video into a folder: pick an existing one, type a new name, or take it out. Same native popover as RemoveButton.
 // `folders` is [name, path] pairs; the path ("Courses / Python") tells nested folders apart.
-export default function FolderButton({ id, folder, folders, className, preview = false }: { id: string; folder: string | null; folders: [string, string][]; className?: string; preview?: boolean }) {
+export default function FolderButton({ id, folder, folders, className }: { id: string; folder: string | null; folders: [string, string][]; className?: string }) {
   const dialog = useId();
   const action = moveSession.bind(null, id);
   const close = () => document.getElementById(dialog)?.hidePopover();
-  const label = preview && folder ? "Move or remove from folder" : "Move to folder";
+  const label = folder ? "Move or remove from folder" : "Move to folder";
 
   return (
     <>
@@ -61,14 +61,9 @@ export default function FolderButton({ id, folder, folders, className, preview =
             </div>
             <ColorChoice />
           </form>
-          {!preview && folder && (
-            <form action={action} onSubmit={close}>
-              <button className="text-sm text-muted transition-colors hover:text-ink">Take out of “{folder}”</button>
-            </form>
-          )}
         </div>
         {/* A real button, not a footnote: people didn't find the old text link. No folder field = out of every folder. */}
-        {preview && folder && (
+        {folder && (
           <form action={action} onSubmit={close} className="mt-6 border-t border-line pt-6">
             <button className="btn-outline w-full max-w-full">
               <span className="truncate">Remove from “{folder}”</span>
