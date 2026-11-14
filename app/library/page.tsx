@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listFolders, listSessions } from "@/lib/db";
+import { isAdmin, listFolders, listSessions } from "@/lib/db";
 import { avgScore, BackToLibrary, Label, scoreColor, scoreOf, Thumb } from "../ui";
 import Folder from "./folder";
 import FolderButton from "./folder-button";
@@ -15,7 +15,8 @@ import type { Session } from "@/lib/db";
 // folders inside it, then its own videos; its tile and totals count everything inside it, subfolders included.
 // Drag a video onto a folder to move it in, or onto the back link to move it up a level.
 export default async function Library({ searchParams }: { searchParams: Promise<{ folder?: string }> }) {
-  const [all, rows] = await Promise.all([listSessions(), listFolders()]);
+  const [all, rows, preview] = await Promise.all([listSessions(), listFolders(), isAdmin()]);
+  // ponytail: `preview` shows admins the new Finished tag and folder-removal wording first; drop it once they're validated.
   const colors = new Map(rows.map((f) => [f.name, f.color]));
   const parents = new Map(rows.map((f) => [f.name, f.parent]));
   const folders = Map.groupBy(
@@ -114,7 +115,11 @@ export default async function Library({ searchParams }: { searchParams: Promise<
             <div className="mt-16 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-line pb-4">
               <h2 className="text-xl font-semibold">{on ? "Videos" : "Not in a folder"}</h2>
               <p className="text-sm text-muted">
-                {on ? `Drag a video onto a folder to move it in, or onto “${up ? `Back to ${up}` : "Back to library"}” to move it out.` : "Drag a video onto a folder to move it in."}
+                {on
+                  ? preview
+                    ? `Drag a video onto “${up ? `Back to ${up}` : "Back to library"}”, or use its folder button, to take it out of this folder.`
+                    : `Drag a video onto a folder to move it in, or onto “${up ? `Back to ${up}` : "Back to library"}” to move it out.`
+                  : "Drag a video onto a folder to move it in."}
               </p>
             </div>
           )}
@@ -155,7 +160,15 @@ export default async function Library({ searchParams }: { searchParams: Promise<
                   href={s.recap ? `/library/${s.id}` : `/watch/${s.video_id}`}
                   className="group grid min-w-0 flex-1 grid-cols-[auto_1fr_auto] items-center gap-4 px-0 py-5 transition-colors hover:bg-paper sm:grid-cols-[auto_1fr_auto_auto] sm:gap-8 sm:px-5"
                 >
-                  <Thumb videoId={s.video_id} className="w-28 transition-transform duration-300 group-hover:scale-[1.03] sm:w-52" />
+                  {/* Finished (recap written) gets a tag on the thumbnail; still-watching ones show the "Still watching" line instead. */}
+                  <span className="relative shrink-0 transition-transform duration-300 group-hover:scale-[1.03]">
+                    <Thumb videoId={s.video_id} className={`w-28 sm:w-52 ${preview && !s.recap ? "opacity-80" : ""}`} />
+                    {preview && s.recap && (
+                      <span className="absolute bottom-1.5 left-1.5 rounded-full bg-good px-2 py-0.5 text-xs font-semibold text-paper sm:bottom-2 sm:left-2 sm:px-2.5 sm:text-sm">
+                        Finished
+                      </span>
+                    )}
+                  </span>
                   <div className="flex min-w-0 flex-col gap-1.5">
                     <p className="line-clamp-2 font-semibold break-words sm:text-xl">{s.title ?? s.video_id}</p>
                     <p className="hidden truncate text-muted sm:block">
@@ -171,6 +184,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
                 </Link>
                 {/* Shown on hover with a mouse, always on touch screens. */}
                 <FolderButton
+                  preview={preview}
                   id={s.id}
                   folder={s.folder ?? null}
                   folders={names.map((n): [string, string] => [n, path(n)])}

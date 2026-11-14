@@ -81,3 +81,8 @@ export async function deleteSession(id: string) {
   if (!UUID.test(id)) return;
   check(await (await supabase()).from("sessions").delete().eq("id", id));
 }
+
+// Admins (public.admins) see features before everyone else; false when signed out.
+export async function isAdmin() {
+  return (await (await supabase()).rpc("is_admin")).data === true;
+}

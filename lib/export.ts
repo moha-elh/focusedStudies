@@ -1,4 +1,4 @@
-import type { Feedback, FeedbackPoint } from "../app/api/review/route.ts";
+import type { Feedback, FeedbackPoint } from "./grade.ts";
 import type { Session } from "./db.ts";
 import { fmtTime } from "./youtube.ts";
 
