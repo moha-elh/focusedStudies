@@ -4,12 +4,12 @@ import { avgScore, scoreColor, Thumb } from "../ui";
 import { folderStyle } from "./colors";
 
 // A folder you could pick up, in its macOS tag color (blue by default): a tab on the back, up to three of its videos sticking out, and a front flap that tips
-// open on hover while the videos lift.
+// open on hover while the videos lift. Prefetched in full (not just the loading state), so opening it is instant.
 export default function Folder({ name, sessions, color, subfolders = 0 }: { name: string; sessions: Session[]; color?: string | null; subfolders?: number }) {
   const avg = avgScore(sessions);
   const fan = ["left-[8%] top-[22%] -rotate-6", "left-[22%] top-[14%] rotate-2", "left-[34%] top-[20%] rotate-[8deg]"];
   return (
-    <Link href={`/library?folder=${encodeURIComponent(name)}`} className="group block" style={folderStyle(color)}>
+    <Link href={`/library?folder=${encodeURIComponent(name)}`} prefetch className="group block" style={folderStyle(color)}>
       <span className="relative block aspect-[4/3] [perspective:900px]">
         <span aria-hidden className="absolute top-0 left-0 h-[18%] w-[42%] rounded-t-[14px] bg-(--back)" />
         <span aria-hidden className="absolute inset-x-0 top-[8%] bottom-0 rounded-panel rounded-tl-none bg-linear-to-b from-(--back) to-(--back-2)" />

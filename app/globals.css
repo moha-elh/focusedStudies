@@ -177,6 +177,11 @@ body {
 }
 
 /* Page motion. Load: hero fades up in a stagger (--d delays). Scroll: sections reveal, step blocks grow. */
+/* app/loading.tsx: slides across again and again until the page arrives; with reduced motion it just sits still. */
+.load-bar { animation: load-slide 1.1s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+@keyframes load-slide { from { translate: -100%; } to { translate: 250%; } }
+@media (prefers-reduced-motion: reduce) { .load-bar { animation: none; width: 100%; opacity: 0.6; } }
+
 .rise { animation: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms) both; }
 @keyframes fade-up { from { opacity: 0; transform: translateY(24px); } }
 

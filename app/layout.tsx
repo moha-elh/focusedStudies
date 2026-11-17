@@ -57,9 +57,9 @@ async function signOut() {
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const user = await currentUser();
-  // Only admins see the link; for everyone else is_admin() is false (or errors) and nothing renders.
-  const admin = user ? await isAdmin() : false;
+  // Side by side, not one after the other. Only admins see the link; for everyone else (signed out included)
+  // is_admin() is false (or errors) and nothing renders.
+  const [user, admin] = await Promise.all([currentUser(), isAdmin()]);
   return (
     // Browser extensions (Grammarly and others) add attributes to <html> and <body> before React loads;
     // ignore those. This only covers these two tags, so real mismatches inside the app are still reported.
