@@ -13,8 +13,7 @@ const TYPE = "application/x-focuslearn-video";
 const HideRow = createContext(() => {});
 export const useHideRow = () => useContext(HideRow);
 
-// `instant` (admin preview for now) turns on the instant hide.
-export function DragRow({ id, instant = false, className = "", style, children }: { id: string; instant?: boolean; className?: string; style?: React.CSSProperties; children: React.ReactNode }) {
+export function DragRow({ id, className = "", style, children }: { id: string; className?: string; style?: React.CSSProperties; children: React.ReactNode }) {
   const [dragging, setDragging] = useState(false);
   const [hidden, setHidden] = useState(false);
   return (
@@ -27,12 +26,12 @@ export function DragRow({ id, instant = false, className = "", style, children }
       }}
       onDragEnd={(e) => {
         setDragging(false);
-        if (instant && e.dataTransfer.dropEffect === "move") setHidden(true); // dropped on a folder
+        if (e.dataTransfer.dropEffect === "move") setHidden(true); // dropped on a folder
       }}
       className={`${className} ${dragging ? "opacity-40" : ""} ${hidden ? "hidden" : ""}`}
       style={style}
     >
-      <HideRow value={() => instant && setHidden(true)}>{children}</HideRow>
+      <HideRow value={() => setHidden(true)}>{children}</HideRow>
     </li>
   );
 }
