@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { isAdmin, listFolders, listSessions } from "@/lib/db";
+import { listFolders, listSessions } from "@/lib/db";
 import { avgScore, BackToLibrary, Label, scoreColor, scoreOf, Thumb } from "../ui";
 import Folder from "./folder";
 import FolderButton from "./folder-button";
@@ -14,8 +14,7 @@ import type { Session } from "@/lib/db";
 // folders inside it, then its own videos; its tile and totals count everything inside it, subfolders included.
 // Drag a video onto a folder to move it in, or onto the back link to move it up a level.
 export default async function Library({ searchParams }: { searchParams: Promise<{ folder?: string }> }) {
-  // preview: admins try new library features on production before everyone gets them (see CLAUDE.md).
-  const [all, rows, preview] = await Promise.all([listSessions(), listFolders(), isAdmin()]);
+  const [all, rows] = await Promise.all([listSessions(), listFolders()]);
   const colors = new Map(rows.map((f) => [f.name, f.color]));
   const parents = new Map(rows.map((f) => [f.name, f.parent]));
   const folders = Map.groupBy(
@@ -99,11 +98,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
             <div className="mt-16 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-line pb-4">
               <h2 className="text-xl font-semibold">{on ? "Videos" : "Not in a folder"}</h2>
               <p className="text-sm text-muted">
-                {preview
-                  ? `Drag a video to move it: the bar that opens at the top lists every folder${on ? " and “No folder”" : ""}.`
-                  : on
-                    ? `Drag a video onto “${up ? `Back to ${up}` : "Back to library"}”, or use its folder button, to take it out of this folder.`
-                    : "Drag a video onto a folder to move it in."}
+                Drag a video to move it: the bar that opens at the top lists every folder{on ? " and “No folder”" : ""}.
               </p>
             </div>
           )}
@@ -137,7 +132,6 @@ export default async function Library({ searchParams }: { searchParams: Promise<
               <DragRow
                 key={s.id}
                 id={s.id}
-                instant={preview}
                 className="rise group/row flex cursor-grab items-center border-b border-line active:cursor-grabbing"
                 style={{ "--d": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}
               >
@@ -186,7 +180,7 @@ export default async function Library({ searchParams }: { searchParams: Promise<
           })}
         </ul>
       )}
-      {preview && <MoveTray folders={names.map((n): [string, string] => [n, path(n)])} current={on} />}
+      <MoveTray folders={names.map((n): [string, string] => [n, path(n)])} current={on} />
     </main>
   );
 }
