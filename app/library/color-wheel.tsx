@@ -1,7 +1,7 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
-import { FOLDER_COLORS, type FolderColor, folderStyle, isHex } from "./colors";
+import { useId, useOptimistic, useRef, useState } from "react";
+import { FOLDER_COLORS, type FolderColor, folderStyle, isHex, pickedColor } from "./colors";
 
 const title = (c: string) => c[0].toUpperCase() + c.slice(1);
 
@@ -23,6 +23,34 @@ export function ColorChoice() {
       ))}
       <ColorWheel />
     </fieldset>
+  );
+}
+
+// A folder page's color picker: the choice shows at once, while the save happens in the background.
+export function FolderColors({ value, action }: { value: string | null; action: (form: FormData) => Promise<void> }) {
+  const [color, setColor] = useOptimistic(value);
+  const save = async (form: FormData) => {
+    setColor(pickedColor(form));
+    await action(form);
+  };
+  return (
+    <>
+      <form action={save} className="contents">
+        {(Object.keys(FOLDER_COLORS) as FolderColor[]).map((c) => (
+          <button
+            key={c}
+            name="color"
+            value={c}
+            aria-label={c}
+            title={title(c)}
+            aria-pressed={(color ?? "blue") === c}
+            style={{ background: FOLDER_COLORS[c][0] }}
+            className="size-7 rounded-full ring-ink ring-offset-2 ring-offset-canvas transition-transform hover:scale-110 aria-pressed:ring-2"
+          />
+        ))}
+      </form>
+      <ColorWheel value={color} action={save} />
+    </>
   );
 }
 

@@ -5,13 +5,19 @@ import { useFormStatus } from "react-dom";
 import { Spinner } from "../ui";
 import { moveSession } from "./actions";
 import { ColorChoice } from "./color-wheel";
+import { useHideRow } from "./drag";
 
 // Files a video into a folder: pick an existing one, type a new name, or take it out. Same native popover as RemoveButton.
 // `folders` is [name, path] pairs; the path ("Courses / Python") tells nested folders apart.
 export default function FolderButton({ id, folder, folders, className }: { id: string; folder: string | null; folders: [string, string][]; className?: string }) {
   const dialog = useId();
   const action = moveSession.bind(null, id);
-  const close = () => document.getElementById(dialog)?.hidePopover();
+  const hide = useHideRow();
+  // The video leaves this list either way, so close the dialog and hide its row without waiting for the server.
+  const close = () => {
+    document.getElementById(dialog)?.hidePopover();
+    hide();
+  };
   const label = folder ? "Move or remove from folder" : "Move to folder";
 
   return (

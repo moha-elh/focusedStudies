@@ -30,8 +30,10 @@ function check<T>({ data, error }: { data: T; error: { message: string } | null 
   return data;
 }
 
+// Lists only show the score, so the full feedback (every point, with quotes) stays in the database.
 export async function listSessions(): Promise<Session[]> {
-  return check(await (await supabase()).from("sessions").select(COLUMNS).order("last_active", { ascending: false })) ?? [];
+  const rows = check(await (await supabase()).from("sessions").select(COLUMNS.replace("feedback", "score:feedback->score")).order("last_active", { ascending: false }));
+  return ((rows ?? []) as unknown as (Omit<Session, "feedback"> & { score: unknown })[]).map(({ score, ...s }) => ({ ...s, feedback: { score } }));
 }
 
 export async function getSession(id: string): Promise<Session | null> {
