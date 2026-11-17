@@ -3,10 +3,9 @@ import { listFolders, listSessions } from "@/lib/db";
 import { avgScore, BackToLibrary, Label, scoreColor, scoreOf, Thumb } from "../ui";
 import Folder from "./folder";
 import FolderButton from "./folder-button";
-import ColorWheel from "./color-wheel";
+import { FolderColors } from "./color-wheel";
 import NewFolder from "./new-folder";
 import { recolorFolder } from "./actions";
-import { FOLDER_COLORS, type FolderColor } from "./colors";
 import RemoveButton from "./remove-button";
 import { DragRow, DropTarget } from "./drag";
 import type { Session } from "@/lib/db";
@@ -56,24 +55,9 @@ export default async function Library({ searchParams }: { searchParams: Promise<
           )}
           <h1 className="text-h1 font-semibold break-words sm:text-hero">{on ?? "Everything you’ve learned."}</h1>
           {on && (
-            // Plain buttons in a form: picking a color saves it, no script needed.
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <span className="text-sm text-muted">Folder color</span>
-              <form action={recolorFolder.bind(null, on)} className="contents">
-                {(Object.keys(FOLDER_COLORS) as FolderColor[]).map((c) => (
-                  <button
-                    key={c}
-                    name="color"
-                    value={c}
-                    aria-label={c}
-                    title={c[0].toUpperCase() + c.slice(1)}
-                    aria-pressed={(colors.get(on) ?? "blue") === c}
-                    style={{ background: FOLDER_COLORS[c][0] }}
-                    className="size-7 rounded-full ring-ink ring-offset-2 ring-offset-canvas transition-transform hover:scale-110 aria-pressed:ring-2"
-                  />
-                ))}
-              </form>
-              <ColorWheel value={colors.get(on)} action={recolorFolder.bind(null, on)} />
+              <FolderColors value={colors.get(on) ?? null} action={recolorFolder.bind(null, on)} />
             </div>
           )}
         </div>
